@@ -1,0 +1,143 @@
+# File: .gitignore - /root/piper/.gitignore
+# Git ignore file for Piper TTS service
+
+# Voice Models - Large files should not be pushed
+models/**/*.onnx
+models/**/*.onnx.json
+models/**/*.pt
+models/**/*.pth
+models/**/*.bin
+models/**/*.safetensors
+models/**/
+
+# Keep models directory structure but ignore contents
+!models/.gitkeep
+!models/*/.gitkeep
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# Environment variables
+
+
+# Logs
+*.log
+logs/
+/var/log/piper/
+app/*.log
+
+# Temporary audio files
+*.wav
+*.mp3
+*.ogg
+*.flac
+/tmp/piper/
+temp/
+/app/temp/
+
+# Docker
+docker-compose.override.yml
+.dockerignore
+
+# IDE
+.vscode/
+.idea/
+*.iml
+.project
+.classpath
+.settings/
+
+# System files
+Thumbs.db
+Desktop.ini
+
+# Build artifacts
+*.o
+*.a
+*.dylib
+*.dll
+*.exe
+
+# Test outputs
+test_output/
+test_*.mp3
+test_*.wav
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Downloaded packages
+downloads/
+*.tar.gz
+*.zip
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# Pytest
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# macOS
+.AppleDouble
+.LSOverride
+Icon
+
+# Linux
+.directory
+.Trash-*
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Redis dump
+dump.rdb
+
+# Setup logs
+/tmp/docker_build.log
+/tmp/docker_compose.log
+/tmp/node_exporter*.tar.gz
+
+# Node Exporter
+node_exporter-*/
+
+# Monitoring data
+prometheus/
+grafana/
+
+# Personal notes
+notes.txt
+TODO.txt
+NOTES.md

@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  piper-tts:
+    build: .
+    container_name: piper-tts
+    restart: unless-stopped
+    ports:
+      - "100.109.226.109:8000:8000"
+    volumes:
+      - ./models:/app/models:ro
+      - ./app:/app/app:ro
+      - /tmp/piper:/tmp/piper
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TZ=UTC
+    env_file:
+      - .env
+    networks:
+      - piper-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+
+networks:
+  piper-network:
+    driver: bridge
