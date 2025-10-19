@@ -349,161 +349,6 @@ install_system_dependencies() {
     print_message "${GREEN}" "✓ System dependencies installed"
 }
 
-# Function to install Node Exporter for monitoring
-install_node_exporter() {
-    print_header "Installing Node Exporter for Monitoring"
-    
-    if systemctl is-active --quiet node_exporter 2>/dev/null; then
-        print_message "${GREEN}" "✓ Node Exporter is already running"
-        return 0
-    fi
-    
-    local node_exporter_version="1.8.2"
-    local node_exporter_url="https://github.com/prometheus/node_exporter/releases/download/v${node_exporter_version}/node_exporter-${node_exporter_version}.linux-amd64.tar.gz"
-    
-    print_message "${YELLOW}" "Downloading Node Exporter ${node_exporter_version}..."
-    
-    cd /tmp
-    wget -q --show-progress "${node_exporter_url}"
-    tar xzf "node_exporter-${node_exporter_version}.linux-amd64.tar.gz"
-    cp "node_exporter-${node_exporter_version}.linux-amd64/node_exporter" /usr/local/bin/
-    rm -rf "node_exporter-${node_exporter_version}.linux-amd64"*
-    
-    # Create systemd service
-    cat > /etc/systemd/system/node_exporter.service <<'EOF'
-[Unit]
-Description=Node Exporter
-Wants=network-online.target
-After=network-online.target
-
-[Service]
-User=nobody
-Group=nogroup
-Type=simple
-ExecStart=/usr/local/bin/node_exporter --web.listen-address=:9100
-
-[Install]
-WantedBy=multi-user.target
-EOF
-    
-    systemctl daemon-reload
-    systemctl enable node_exporter > /dev/null 2>&1
-    systemctl start node_exporter
-    
-    print_message "${GREEN}" "✓ Node Exporter installed and started on port 9100"
-}
-
-# Function to install Fluent Bit for log forwarding
-install_fluent_bit() {
-    print_header "Installing Fluent Bit for Log Forwarding"
-    
-    if command_exists fluent-bit; then
-        print_message "${GREEN}" "✓ Fluent Bit is already installed"
-        return 0
-    fi
-    
-    print_message "${YELLOW}" "Installing Fluent Bit..."
-    
-    curl -sSL https://raw.githubusercontent.com/fluent/fluent-bit/master/install.sh | sh > /dev/null 2>&1
-    
-    # Create Fluent Bit configuration for Piper logs
-    mkdir -p /etc/fluent-bit
-    cat > /etc/fluent-bit/fluent-bit.conf <<'EOF'
-[SERVICE]
-    Flush        5
-    Daemon       Off
-    Log_Level    info
-
-[INPUT]
-    Name              tail
-    Path              /var/log/piper/*.log
-    Tag               piper.*
-    Parser            json
-    Refresh_Interval  5
-
-[INPUT]
-    Name              systemd
-    Tag               systemd.*
-    Systemd_Filter    _SYSTEMD_UNIT=docker.service
-
-[OUTPUT]
-    Name              forward
-    Match             *
-    Host              100.122.6.31
-    Port              3100
-EOF
-    
-    # Create systemd service for Fluent Bit
-    cat > /etc/systemd/system/fluent-bit.service <<'EOF'
-[Unit]
-Description=Fluent Bit
-Documentation=https://docs.fluentbit.io/
-After=network.target
-
-[Service]
-Type=simple
-ExecStart=/usr/local/bin/fluent-bit -c /etc/fluent-bit/fluent-bit.conf
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-EOF
-    
-    systemctl daemon-reload
-    systemctl enable fluent-bit > /dev/null 2>&1
-    systemctl start fluent-bit
-    
-    print_message "${GREEN}" "✓ Fluent Bit installed and configured"
-}
-
-# Function to install cAdvisor for container metrics
-install_cadvisor() {
-    print_header "Installing cAdvisor for Container Metrics"
-    
-    # Ensure Docker daemon is running
-    if ! docker info >/dev/null 2>&1; then
-        print_message "${RED}" "Docker daemon is not running. Cannot install cAdvisor."
-        print_message "${YELLOW}" "Skipping cAdvisor installation."
-        return 1
-    fi
-    
-    # Check if cAdvisor is already running
-    if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q '^cadvisor$'; then
-        print_message "${YELLOW}" "cAdvisor container already exists"
-        
-        # Start if stopped
-        if ! docker ps --format '{{.Names}}' | grep -q '^cadvisor$'; then
-            print_message "${YELLOW}" "Starting existing cAdvisor container..."
-            docker start cadvisor > /dev/null 2>&1
-        fi
-        
-        print_message "${GREEN}" "✓ cAdvisor is running"
-        return 0
-    fi
-    
-    print_message "${YELLOW}" "Starting cAdvisor container..."
-    
-    docker run -d \
-        --name=cadvisor \
-        --restart=unless-stopped \
-        --volume=/:/rootfs:ro \
-        --volume=/var/run:/var/run:ro \
-        --volume=/sys:/sys:ro \
-        --volume=/var/lib/docker/:/var/lib/docker:ro \
-        --volume=/dev/disk/:/dev/disk:ro \
-        --publish=8080:8080 \
-        --privileged \
-        --device=/dev/kmsg \
-        gcr.io/cadvisor/cadvisor:latest \
-        > /dev/null 2>&1
-    
-    if [ $? -eq 0 ]; then
-        print_message "${GREEN}" "✓ cAdvisor installed and running on port 8080"
-    else
-        print_message "${YELLOW}" "Warning: Failed to start cAdvisor (non-critical)"
-    fi
-}
-
 # Function to verify .env file
 verify_env_file() {
     print_header "Verifying Configuration Files"
@@ -655,11 +500,6 @@ ${BLUE}Service Details:${NC}
   Internal Port:    8000
   Backend IP:       100.116.174.15
 
-${BLUE}Monitoring:${NC}
-  Node Exporter:    http://localhost:9100/metrics
-  cAdvisor:         http://localhost:8080
-  Fluent Bit:       Forwarding to 100.122.6.31:3100
-
 ${BLUE}Endpoints:${NC}
   Health Check:     http://100.109.226.109:8000/health
   Voice List:       http://100.109.226.109:8000/tts/voices
@@ -694,23 +534,6 @@ ${BLUE}Troubleshooting:${NC}
 EOF
 }
 
-# Function to setup monitoring firewall
-setup_monitoring_firewall() {
-    print_header "Configuring Firewall for Monitoring"
-    
-    if command_exists ufw; then
-        print_message "${YELLOW}" "Configuring UFW firewall rules..."
-        
-        # Allow from log server
-        ufw allow from 100.122.6.31 to any port 9100 comment 'Node Exporter from log server' > /dev/null 2>&1
-        ufw allow from 100.122.6.31 to any port 8080 comment 'cAdvisor from log server' > /dev/null 2>&1
-        
-        print_message "${GREEN}" "✓ Firewall rules configured"
-    else
-        print_message "${YELLOW}" "UFW not installed. Skipping firewall configuration."
-    fi
-}
-
 # Main installation function
 main() {
     clear
@@ -734,10 +557,6 @@ main() {
     create_log_directory
     verify_env_file
     download_all_models
-    install_node_exporter
-    install_fluent_bit
-    install_cadvisor
-    setup_monitoring_firewall
     build_docker_image
     start_services
     test_service

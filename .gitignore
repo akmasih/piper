@@ -125,18 +125,6 @@ Icon
 # Redis dump
 dump.rdb
 
-# Setup logs
-/tmp/docker_build.log
-/tmp/docker_compose.log
-/tmp/node_exporter*.tar.gz
-
-# Node Exporter
-node_exporter-*/
-
-# Monitoring data
-prometheus/
-grafana/
-
 # Personal notes
 notes.txt
 TODO.txt
