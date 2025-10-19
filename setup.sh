@@ -1,6 +1,6 @@
 #!/bin/bash
 # File: setup.sh - /root/piper/setup.sh
-# Comprehensive installation script for Piper TTS Service in Lingudesk system
+# Comprehensive installation script for Piper TTS Service with centralized monitoring
 
 set -e
 
@@ -9,6 +9,7 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Configuration
@@ -16,6 +17,16 @@ PIPER_DIR="/root/piper"
 MODELS_DIR="${PIPER_DIR}/models"
 APP_DIR="${PIPER_DIR}/app"
 HUGGINGFACE_BASE_URL="https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0"
+
+# Monitoring Configuration
+NODE_EXPORTER_VERSION="1.7.0"
+NODE_EXPORTER_PORT=9100
+CADVISOR_PORT=8080
+FLUENT_BIT_HTTP_PORT=2020
+LOG_SERVER_IP="100.122.6.31"
+SERVER_NAME="piper"
+SERVER_IP="100.109.226.109"
+SERVER_TYPE="tts"
 
 # Model definitions with correct path structure
 get_model_path() {
@@ -41,10 +52,15 @@ print_message() {
 # Function to print section header
 print_header() {
     echo
-    print_message "${BLUE}" "======================================"
-    print_message "${BLUE}" "$1"
-    print_message "${BLUE}" "======================================"
+    print_message "${CYAN}" "======================================"
+    print_message "${CYAN}" "$1"
+    print_message "${CYAN}" "======================================"
     echo
+}
+
+# Function to print separator
+print_separator() {
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 }
 
 # Function to check if command exists
@@ -128,7 +144,7 @@ check_requirements() {
     
     if [ ${#missing_packages[@]} -gt 0 ]; then
         print_message "${YELLOW}" "Installing missing packages: ${missing_packages[*]}"
-        apt-get update
+        apt-get update -qq
         apt-get install -y "${missing_packages[@]}"
     fi
     
@@ -344,9 +360,187 @@ install_system_dependencies() {
         python3-pip \
         python3-venv \
         build-essential \
+        net-tools \
+        jq \
         > /dev/null 2>&1
     
     print_message "${GREEN}" "✓ System dependencies installed"
+}
+
+# Function to install Node Exporter
+install_node_exporter() {
+    print_header "Installing Node Exporter (System Metrics)"
+    
+    if systemctl is-active --quiet node_exporter; then
+        print_message "${YELLOW}" "✓ Node Exporter already running"
+        return 0
+    fi
+    
+    print_message "${YELLOW}" "Downloading Node Exporter v${NODE_EXPORTER_VERSION}..."
+    
+    wget -q https://github.com/prometheus/node_exporter/releases/download/v${NODE_EXPORTER_VERSION}/node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz
+    tar xzf node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz
+    mv node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64/node_exporter /usr/local/bin/
+    rm -rf node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64*
+    
+    print_message "${YELLOW}" "Creating systemd service..."
+    
+    cat > /etc/systemd/system/node_exporter.service << EOF
+[Unit]
+Description=Node Exporter for Prometheus
+After=network.target
+
+[Service]
+User=root
+Type=simple
+ExecStart=/usr/local/bin/node_exporter \\
+    --web.listen-address=:${NODE_EXPORTER_PORT} \\
+    --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run)($|/) \\
+    --collector.filesystem.fs-types-exclude=^(autofs|binfmt_misc|cgroup2?|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|iso9660|mqueue|nsfs|overlay|proc|procfs|pstore|rpc_pipefs|securityfs|selinuxfs|squashfs|sysfs|tracefs|tmpfs)$
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    
+    systemctl daemon-reload
+    systemctl enable node_exporter
+    systemctl start node_exporter
+    
+    if systemctl is-active --quiet node_exporter; then
+        print_message "${GREEN}" "✓ Node Exporter installed and running on port ${NODE_EXPORTER_PORT}"
+    else
+        print_message "${RED}" "✗ Failed to start Node Exporter"
+        journalctl -u node_exporter -n 10 --no-pager
+    fi
+}
+
+# Function to install Fluent Bit
+install_fluent_bit() {
+    print_header "Installing Fluent Bit (Log Aggregation)"
+    
+    if systemctl is-active --quiet fluent-bit; then
+        print_message "${YELLOW}" "✓ Fluent Bit already running"
+        return 0
+    fi
+    
+    print_message "${YELLOW}" "Installing Fluent Bit from official repository..."
+    
+    curl https://raw.githubusercontent.com/fluent/fluent-bit/master/install.sh | sh
+    sleep 2
+    
+    print_message "${YELLOW}" "Creating Fluent Bit configuration..."
+    
+    # Create parsers configuration
+    cat > /etc/fluent-bit/parsers.conf << 'EOF'
+[PARSER]
+    Name   json
+    Format json
+
+[PARSER]
+    Name   docker
+    Format json
+    Time_Key time
+    Time_Format %Y-%m-%dT%H:%M:%S.%LZ
+
+[PARSER]
+    Name   syslog
+    Format regex
+    Regex  ^<(?<pri>[0-9]+)>(?<time>[^ ]* {1,2}[^ ]* [^ ]*) (?<host>[^ ]*) (?<ident>[a-zA-Z0-9_\/\.\-]*)(?:\[(?<pid>[0-9]+)\])?(?:[^\:]*\:)? *(?<message>.*)$
+    Time_Key time
+    Time_Format %b %d %H:%M:%S
+EOF
+    
+    # Create main Fluent Bit configuration
+    cat > /etc/fluent-bit/fluent-bit.conf << EOF
+[SERVICE]
+    Flush           5
+    Daemon          Off
+    Log_Level       info
+    Parsers_File    /etc/fluent-bit/parsers.conf
+    HTTP_Server     On
+    HTTP_Listen     0.0.0.0
+    HTTP_Port       ${FLUENT_BIT_HTTP_PORT}
+
+# System logs
+[INPUT]
+    Name              systemd
+    Tag               systemd.*
+    Read_From_Tail    On
+
+[INPUT]
+    Name              tail
+    Tag               system.syslog
+    Path              /var/log/syslog
+    Path_Key          filename
+    DB                /var/log/flb_syslog.db
+    Skip_Long_Lines   On
+
+# Docker container logs (Piper TTS)
+[INPUT]
+    Name              tail
+    Tag               piper.docker
+    Path              /var/lib/docker/containers/*/*.log
+    Parser            docker
+    Path_Key          container_id
+    DB                /var/log/flb_docker.db
+    Skip_Long_Lines   On
+
+# System metrics
+[INPUT]
+    Name              cpu
+    Tag               metrics.cpu
+    Interval_Sec      30
+
+[INPUT]
+    Name              mem
+    Tag               metrics.memory
+    Interval_Sec      30
+
+[INPUT]
+    Name              disk
+    Tag               metrics.disk
+    Interval_Sec      60
+
+# Add metadata to all logs
+[FILTER]
+    Name              record_modifier
+    Match             *
+    Record            hostname ${SERVER_NAME}
+    Record            server_type ${SERVER_TYPE}
+    Record            server_ip ${SERVER_IP}
+    Record            service piper-tts
+
+# Send to Loki (centralized log server)
+[OUTPUT]
+    Name              http
+    Match             *
+    Host              ${LOG_SERVER_IP}
+    Port              3100
+    URI               /loki/api/v1/push
+    Format            json
+    json_date_key     timestamp
+    json_date_format  iso8601
+    Headers           Content-Type application/json
+    Retry_Limit       5
+EOF
+    
+    print_message "${YELLOW}" "Starting Fluent Bit service..."
+    
+    systemctl daemon-reload
+    systemctl enable fluent-bit
+    systemctl start fluent-bit || {
+        print_message "${YELLOW}" "⚠ Fluent Bit start failed, checking logs..."
+        journalctl -u fluent-bit -n 10 --no-pager
+    }
+    
+    if systemctl is-active --quiet fluent-bit; then
+        print_message "${GREEN}" "✓ Fluent Bit installed and running"
+        print_message "${GREEN}" "  → Forwarding logs to Loki at ${LOG_SERVER_IP}:3100"
+    else
+        print_message "${YELLOW}" "⚠ Fluent Bit installed but not running"
+    fi
 }
 
 # Function to verify .env file
@@ -373,6 +567,7 @@ verify_env_file() {
         "MODEL_ES"
         "MODEL_IT"
         "MODEL_FA"
+        "LOG_SERVER_IP"
     )
     
     local missing_vars=()
@@ -487,6 +682,58 @@ test_service() {
     fi
 }
 
+# Function to test monitoring components
+test_monitoring() {
+    print_header "Testing Monitoring Components"
+    
+    print_separator
+    print_message "${CYAN}" "Component Status:"
+    print_separator
+    
+    printf "%-25s %-10s %-15s\n" "COMPONENT" "STATUS" "PORT"
+    echo "════════════════════════════════════════════════"
+    
+    # Node Exporter
+    if systemctl is-active --quiet node_exporter; then
+        printf "%-25s ${GREEN}%-10s${NC} %-15s\n" "Node Exporter" "✓ Running" "${NODE_EXPORTER_PORT}"
+    else
+        printf "%-25s ${RED}%-10s${NC} %-15s\n" "Node Exporter" "✗ Failed" "${NODE_EXPORTER_PORT}"
+    fi
+    
+    # Fluent Bit
+    if systemctl is-active --quiet fluent-bit; then
+        printf "%-25s ${GREEN}%-10s${NC} %-15s\n" "Fluent Bit" "✓ Running" "${FLUENT_BIT_HTTP_PORT}"
+    else
+        printf "%-25s ${YELLOW}%-10s${NC} %-15s\n" "Fluent Bit" "⚠ Check" "${FLUENT_BIT_HTTP_PORT}"
+    fi
+    
+    # cAdvisor
+    if docker ps 2>/dev/null | grep -q piper-tts; then
+        printf "%-25s ${GREEN}%-10s${NC} %-15s\n" "Piper Container" "✓ Running" "8000"
+    else
+        printf "%-25s ${RED}%-10s${NC} %-15s\n" "Piper Container" "✗ Failed" "8000"
+    fi
+    
+    echo "════════════════════════════════════════════════"
+    
+    # Connectivity test
+    print_message "\n${CYAN}Connectivity Test:${NC}" ""
+    if curl -s --connect-timeout 2 http://${LOG_SERVER_IP}:3100/ready > /dev/null 2>&1; then
+        print_message "${GREEN}" "✅ Loki is reachable at ${LOG_SERVER_IP}:3100"
+    else
+        print_message "${YELLOW}" "⚠ Cannot reach Loki at ${LOG_SERVER_IP}:3100"
+        print_message "${YELLOW}" "   Check if Log Server is running"
+    fi
+    
+    if curl -s --connect-timeout 2 http://${LOG_SERVER_IP}:9090/-/healthy > /dev/null 2>&1; then
+        print_message "${GREEN}" "✅ Prometheus is reachable at ${LOG_SERVER_IP}:9090"
+    else
+        print_message "${YELLOW}" "⚠ Prometheus not reachable at ${LOG_SERVER_IP}:9090"
+    fi
+    
+    print_separator
+}
+
 # Function to display service information
 display_service_info() {
     print_header "Service Information"
@@ -495,15 +742,23 @@ display_service_info() {
 ${GREEN}Piper TTS Service Installation Complete!${NC}
 
 ${BLUE}Service Details:${NC}
-  Server Name:      piper
-  Tailscale IP:     100.109.226.109
+  Server Name:      ${SERVER_NAME}
+  Tailscale IP:     ${SERVER_IP}
   Internal Port:    8000
   Backend IP:       100.116.174.15
 
 ${BLUE}Endpoints:${NC}
-  Health Check:     http://100.109.226.109:8000/health
-  Voice List:       http://100.109.226.109:8000/tts/voices
-  Generate Speech:  http://100.109.226.109:8000/tts/generate
+  Health Check:     http://${SERVER_IP}:8000/health
+  Metrics:          http://${SERVER_IP}:8000/metrics
+  Voice List:       http://${SERVER_IP}:8000/tts/voices
+  Generate Speech:  http://${SERVER_IP}:8000/tts/generate
+
+${BLUE}Monitoring:${NC}
+  Node Exporter:    http://${SERVER_IP}:${NODE_EXPORTER_PORT}/metrics
+  Fluent Bit:       http://${SERVER_IP}:${FLUENT_BIT_HTTP_PORT}/api/v1/metrics/prometheus
+  Logs → Loki:      ${LOG_SERVER_IP}:3100
+  Metrics → Prom:   ${LOG_SERVER_IP}:9090
+  Grafana:          https://log.lingudesk.com
 
 ${BLUE}Useful Commands:${NC}
   View logs:        cd ${PIPER_DIR} && docker compose logs -f
@@ -512,6 +767,10 @@ ${BLUE}Useful Commands:${NC}
   Check status:     cd ${PIPER_DIR} && docker compose ps
   View container:   docker ps
 
+  Node Exporter:    systemctl status node_exporter
+  Fluent Bit:       systemctl status fluent-bit
+  Fluent Bit logs:  journalctl -u fluent-bit -f
+
 ${BLUE}Model Directories:${NC}
   Models location:  ${MODELS_DIR}
   Temp directory:   /tmp/piper
@@ -519,6 +778,7 @@ ${BLUE}Model Directories:${NC}
 ${BLUE}Configuration:${NC}
   Environment:      ${PIPER_DIR}/.env
   Docker Compose:   ${PIPER_DIR}/docker-compose.yml
+  Fluent Bit:       /etc/fluent-bit/fluent-bit.conf
 
 ${YELLOW}Note:${NC} The service is only accessible from the backend server (100.116.174.15)
 and through Tailscale network. External access is restricted for security.
@@ -530,6 +790,12 @@ ${BLUE}Troubleshooting:${NC}
     3. Check port: netstat -tulpn | grep 8000
     4. Restart Docker: systemctl restart docker
     5. View build log: cat /tmp/docker_build.log
+  
+  If monitoring fails:
+    1. Check Node Exporter: systemctl status node_exporter
+    2. Check Fluent Bit: systemctl status fluent-bit
+    3. Test connectivity: curl http://${LOG_SERVER_IP}:3100/ready
+    4. View Fluent Bit logs: journalctl -u fluent-bit -n 50
 
 EOF
 }
@@ -539,7 +805,7 @@ main() {
     clear
     print_header "Piper TTS Service Installation Script"
     print_message "${BLUE}" "This script will install and configure Piper TTS service"
-    print_message "${BLUE}" "for the Lingudesk platform"
+    print_message "${BLUE}" "with centralized monitoring for the Lingudesk platform"
     echo
     
     # Check if running as root
@@ -556,15 +822,25 @@ main() {
     create_directory_structure
     create_log_directory
     verify_env_file
+    
+    # Install monitoring components
+    install_node_exporter
+    install_fluent_bit
+    
+    # Install Piper TTS
     download_all_models
     build_docker_image
     start_services
+    
+    # Test everything
     test_service
+    test_monitoring
     display_service_info
     
     print_header "Installation Complete"
-    print_message "${GREEN}" "Piper TTS service is now running!"
-    print_message "${YELLOW}" "Verify backend can access: http://100.109.226.109:8000/health"
+    print_message "${GREEN}" "Piper TTS service with monitoring is now running!"
+    print_message "${YELLOW}" "Verify in Grafana: https://log.lingudesk.com"
+    print_message "${YELLOW}" "Look for '${SERVER_NAME}' in dashboards"
     
     exit 0
 }

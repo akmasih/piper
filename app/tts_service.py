@@ -1,5 +1,5 @@
 # File: app/tts_service.py - /root/piper/app/tts_service.py
-# Core TTS service implementation using Piper
+# Core TTS service implementation using Piper with structured logging
 
 import asyncio
 import io
@@ -8,7 +8,7 @@ import logging
 import os
 import subprocess
 import tempfile
-import wave
+import time
 from pathlib import Path
 from typing import Dict, Optional, Any, BinaryIO
 from concurrent.futures import ThreadPoolExecutor
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class PiperTTSService:
     """
     Piper TTS Service Handler
-    Manages voice models and generates speech from text
+    Manages voice models and generates speech from text with comprehensive logging
     """
     
     def __init__(self):
@@ -45,25 +45,55 @@ class PiperTTSService:
             'fa': settings.MODEL_FA
         }
         
+        logger.info("TTS service instance created", extra={
+            'event': 'service_init',
+            'models_dir': str(self.models_dir),
+            'temp_dir': str(self.temp_dir),
+            'worker_threads': settings.WORKER_THREADS
+        })
+        
     async def initialize(self):
         """
         Initialize the TTS service
         Creates directories and prepares all language models
         """
         try:
+            logger.info("Starting TTS service initialization", extra={
+                'event': 'initialization_start',
+                'languages': list(self.language_models.keys())
+            })
+            
             # Create required directories
             self.models_dir.mkdir(parents=True, exist_ok=True)
             self.temp_dir.mkdir(parents=True, exist_ok=True)
             
+            logger.debug("Directories created", extra={
+                'event': 'directories_created',
+                'models_dir': str(self.models_dir),
+                'temp_dir': str(self.temp_dir)
+            })
+            
             # Prepare all language models
+            initialization_start = time.time()
             for lang, model_name in self.language_models.items():
                 await self._prepare_model(lang, model_name)
             
+            initialization_duration = time.time() - initialization_start
+            
             self._ready = True
-            logger.info(f"Loaded {len(self.loaded_models)} language models")
+            logger.info("TTS service initialization completed", extra={
+                'event': 'initialization_complete',
+                'models_loaded': len(self.loaded_models),
+                'languages': list(self.loaded_models.keys()),
+                'duration': round(initialization_duration, 2)
+            })
             
         except Exception as e:
-            logger.error(f"Failed to initialize TTS service: {e}")
+            logger.error("Failed to initialize TTS service", extra={
+                'event': 'initialization_failed',
+                'error': str(e),
+                'error_type': type(e).__name__
+            }, exc_info=True)
             raise
     
     async def _prepare_model(self, language: str, model_name: str):
@@ -76,6 +106,12 @@ class PiperTTSService:
             model_name: Name of the Piper voice model
         """
         try:
+            logger.debug("Preparing model", extra={
+                'event': 'model_preparation_start',
+                'language': language,
+                'model_name': model_name
+            })
+            
             model_dir = self.models_dir / language
             model_dir.mkdir(parents=True, exist_ok=True)
             
@@ -84,8 +120,19 @@ class PiperTTSService:
             
             # Download model if not present
             if not model_file.exists() or not config_file.exists():
-                logger.info(f"Downloading model {model_name} for {language}")
+                logger.info("Model files not found, downloading", extra={
+                    'event': 'model_download_start',
+                    'language': language,
+                    'model_name': model_name
+                })
                 await self._download_model(model_name, model_dir)
+            else:
+                logger.debug("Model files already exist", extra={
+                    'event': 'model_files_exist',
+                    'language': language,
+                    'model_file': str(model_file),
+                    'config_file': str(config_file)
+                })
             
             # Load model configuration
             if config_file.exists():
@@ -98,10 +145,28 @@ class PiperTTSService:
                         'config': config
                     }
                     self.loaded_models[language] = model_name
-                    logger.info(f"Model {model_name} ready for {language}")
+                    
+                    logger.info("Model loaded successfully", extra={
+                        'event': 'model_loaded',
+                        'language': language,
+                        'model_name': model_name,
+                        'sample_rate': config.get('audio', {}).get('sample_rate', 'unknown')
+                    })
+            else:
+                logger.warning("Config file not found after download", extra={
+                    'event': 'config_file_missing',
+                    'language': language,
+                    'config_file': str(config_file)
+                })
             
         except Exception as e:
-            logger.error(f"Failed to prepare model for {language}: {e}")
+            logger.error("Failed to prepare model", extra={
+                'event': 'model_preparation_failed',
+                'language': language,
+                'model_name': model_name,
+                'error': str(e),
+                'error_type': type(e).__name__
+            }, exc_info=True)
     
     async def _download_model(self, model_name: str, output_dir: Path):
         """
@@ -111,7 +176,14 @@ class PiperTTSService:
             model_name: Name of the model to download
             output_dir: Directory to save the model files
         """
+        logger.info("Starting model download", extra={
+            'event': 'model_download_start',
+            'model_name': model_name,
+            'output_dir': str(output_dir)
+        })
+        
         loop = asyncio.get_event_loop()
+        download_start = time.time()
         
         def download():
             try:
@@ -119,6 +191,11 @@ class PiperTTSService:
                     "piper", "--download-model", model_name,
                     "--download-dir", str(output_dir)
                 ]
+                
+                logger.debug("Executing download command", extra={
+                    'event': 'download_command_exec',
+                    'command': ' '.join(cmd)
+                })
                 
                 result = subprocess.run(
                     cmd,
@@ -129,10 +206,28 @@ class PiperTTSService:
                 
                 if result.returncode != 0:
                     raise Exception(f"Model download failed: {result.stderr}")
+                
+                download_duration = time.time() - download_start
+                logger.info("Model download completed", extra={
+                    'event': 'model_download_complete',
+                    'model_name': model_name,
+                    'duration': round(download_duration, 2)
+                })
                     
             except subprocess.TimeoutExpired:
+                logger.error("Model download timeout", extra={
+                    'event': 'model_download_timeout',
+                    'model_name': model_name,
+                    'timeout': 300
+                })
                 raise Exception(f"Model download timeout for {model_name}")
             except Exception as e:
+                logger.error("Model download error", extra={
+                    'event': 'model_download_error',
+                    'model_name': model_name,
+                    'error': str(e),
+                    'error_type': type(e).__name__
+                }, exc_info=True)
                 raise Exception(f"Failed to download model {model_name}: {e}")
         
         await loop.run_in_executor(self.executor, download)
@@ -189,6 +284,12 @@ class PiperTTSService:
             
             voices[lang] = [voice_info]
         
+        logger.debug("Voices list generated", extra={
+            'event': 'voices_list_generated',
+            'languages': list(voices.keys()),
+            'total_voices': sum(len(v) for v in voices.values())
+        })
+        
         return voices
     
     def _extract_quality(self, model_name: str) -> str:
@@ -234,13 +335,30 @@ class PiperTTSService:
             ValueError: If language not supported or text is empty
             Exception: If generation fails
         """
+        generation_start = time.time()
+        
+        logger.info("Starting speech generation", extra={
+            'event': 'speech_generation_start',
+            'language': language,
+            'text_length': len(text),
+            'speed': speed,
+            'voice': voice
+        })
         
         # Validate language
         if language not in self.loaded_models:
+            logger.warning("Unsupported language requested", extra={
+                'event': 'unsupported_language',
+                'language': language,
+                'available_languages': list(self.loaded_models.keys())
+            })
             raise ValueError(f"Language {language} not supported")
         
         # Validate text
         if not text.strip():
+            logger.warning("Empty text provided", extra={
+                'event': 'empty_text'
+            })
             raise ValueError("Text cannot be empty")
         
         # Get model configuration
@@ -248,18 +366,54 @@ class PiperTTSService:
         model_path = model_config['model_path']
         config_path = model_config['config_path']
         
-        # Generate speech using Piper
-        audio_data = await self._run_piper(
-            text=text,
-            model_path=model_path,
-            config_path=config_path,
-            speed=speed
-        )
-        
-        # Convert to MP3 format
-        mp3_data = await self._convert_to_mp3(audio_data)
-        
-        return io.BytesIO(mp3_data)
+        try:
+            # Generate speech using Piper
+            piper_start = time.time()
+            audio_data = await self._run_piper(
+                text=text,
+                model_path=model_path,
+                config_path=config_path,
+                speed=speed
+            )
+            piper_duration = time.time() - piper_start
+            
+            logger.debug("Piper generation completed", extra={
+                'event': 'piper_generation_complete',
+                'language': language,
+                'duration': round(piper_duration, 3),
+                'audio_size': len(audio_data)
+            })
+            
+            # Convert to MP3 format
+            mp3_start = time.time()
+            mp3_data = await self._convert_to_mp3(audio_data)
+            mp3_duration = time.time() - mp3_start
+            
+            total_duration = time.time() - generation_start
+            
+            logger.info("Speech generation completed", extra={
+                'event': 'speech_generation_complete',
+                'language': language,
+                'text_length': len(text),
+                'audio_size': len(mp3_data),
+                'piper_duration': round(piper_duration, 3),
+                'mp3_duration': round(mp3_duration, 3),
+                'total_duration': round(total_duration, 3)
+            })
+            
+            return io.BytesIO(mp3_data)
+            
+        except Exception as e:
+            duration = time.time() - generation_start
+            logger.error("Speech generation failed", extra={
+                'event': 'speech_generation_failed',
+                'language': language,
+                'text_length': len(text),
+                'error': str(e),
+                'error_type': type(e).__name__,
+                'duration': round(duration, 3)
+            }, exc_info=True)
+            raise
     
     async def _run_piper(
         self,
@@ -286,6 +440,9 @@ class PiperTTSService:
         loop = asyncio.get_event_loop()
         
         def run_tts():
+            text_file_path = None
+            wav_file_path = None
+            
             try:
                 # Create temporary text file
                 with tempfile.NamedTemporaryFile(
@@ -305,51 +462,80 @@ class PiperTTSService:
                 ) as wav_file:
                     wav_file_path = wav_file.name
                 
-                try:
-                    # Build Piper command
-                    cmd = [
-                        "piper",
-                        "--model", model_path,
-                        "--config", config_path,
-                        "--output_file", wav_file_path
-                    ]
+                # Build Piper command
+                cmd = [
+                    "piper",
+                    "--model", model_path,
+                    "--config", config_path,
+                    "--output_file", wav_file_path
+                ]
+                
+                # Add speed control if needed
+                if speed != 1.0:
+                    length_scale = 1.0 / speed
+                    cmd.extend(["--length-scale", str(length_scale)])
+                
+                logger.debug("Executing Piper command", extra={
+                    'event': 'piper_command_exec',
+                    'model_path': model_path,
+                    'speed': speed
+                })
+                
+                # Run Piper with text input
+                with open(text_file_path, 'r') as f:
+                    result = subprocess.run(
+                        cmd,
+                        stdin=f,
+                        capture_output=True,
+                        timeout=settings.REQUEST_TIMEOUT
+                    )
+                
+                if result.returncode != 0:
+                    error_msg = result.stderr.decode()
+                    logger.error("Piper execution failed", extra={
+                        'event': 'piper_execution_failed',
+                        'return_code': result.returncode,
+                        'error': error_msg
+                    })
+                    raise Exception(f"Piper failed: {error_msg}")
+                
+                # Read generated WAV file
+                with open(wav_file_path, 'rb') as f:
+                    wav_data = f.read()
+                
+                logger.debug("WAV file read", extra={
+                    'event': 'wav_file_read',
+                    'size': len(wav_data)
+                })
+                
+                return wav_data
                     
-                    # Add speed control if needed
-                    if speed != 1.0:
-                        length_scale = 1.0 / speed
-                        cmd.extend(["--length-scale", str(length_scale)])
-                    
-                    # Run Piper with text input
-                    with open(text_file_path, 'r') as f:
-                        result = subprocess.run(
-                            cmd,
-                            stdin=f,
-                            capture_output=True,
-                            timeout=settings.REQUEST_TIMEOUT
-                        )
-                    
-                    if result.returncode != 0:
-                        raise Exception(f"Piper failed: {result.stderr.decode()}")
-                    
-                    # Read generated WAV file
-                    with open(wav_file_path, 'rb') as f:
-                        wav_data = f.read()
-                    
-                    return wav_data
-                    
-                finally:
-                    # Clean up temporary files
-                    for path in [text_file_path, wav_file_path]:
+            except subprocess.TimeoutExpired:
+                logger.error("Piper execution timeout", extra={
+                    'event': 'piper_timeout',
+                    'timeout': settings.REQUEST_TIMEOUT
+                })
+                raise Exception("TTS generation timeout")
+            except Exception as e:
+                logger.error("Piper execution error", extra={
+                    'event': 'piper_execution_error',
+                    'error': str(e),
+                    'error_type': type(e).__name__
+                }, exc_info=True)
+                raise Exception(f"TTS generation failed: {e}")
+            finally:
+                # Clean up temporary files
+                for path in [text_file_path, wav_file_path]:
+                    if path:
                         try:
                             if os.path.exists(path):
                                 os.unlink(path)
-                        except:
-                            pass
-                            
-            except subprocess.TimeoutExpired:
-                raise Exception("TTS generation timeout")
-            except Exception as e:
-                raise Exception(f"TTS generation failed: {e}")
+                        except Exception as e:
+                            logger.warning("Failed to cleanup temp file", extra={
+                                'event': 'temp_file_cleanup_failed',
+                                'file': path,
+                                'error': str(e)
+                            })
         
         return await loop.run_in_executor(self.executor, run_tts)
     
@@ -370,6 +556,12 @@ class PiperTTSService:
         
         def convert():
             try:
+                logger.debug("Starting MP3 conversion", extra={
+                    'event': 'mp3_conversion_start',
+                    'wav_size': len(wav_data),
+                    'bitrate': settings.MP3_BITRATE
+                })
+                
                 # Load WAV data
                 audio = AudioSegment.from_wav(io.BytesIO(wav_data))
                 
@@ -383,9 +575,22 @@ class PiperTTSService:
                 )
                 
                 mp3_buffer.seek(0)
-                return mp3_buffer.read()
+                mp3_data = mp3_buffer.read()
+                
+                logger.debug("MP3 conversion completed", extra={
+                    'event': 'mp3_conversion_complete',
+                    'mp3_size': len(mp3_data),
+                    'compression_ratio': round(len(wav_data) / len(mp3_data), 2)
+                })
+                
+                return mp3_data
                 
             except Exception as e:
+                logger.error("MP3 conversion error", extra={
+                    'event': 'mp3_conversion_error',
+                    'error': str(e),
+                    'error_type': type(e).__name__
+                }, exc_info=True)
                 raise Exception(f"MP3 conversion failed: {e}")
         
         return await loop.run_in_executor(self.executor, convert)
@@ -396,22 +601,40 @@ class PiperTTSService:
         Called during service shutdown
         """
         try:
+            logger.info("Starting service cleanup", extra={
+                'event': 'cleanup_start'
+            })
+            
             # Shutdown thread pool executor
             self.executor.shutdown(wait=True, cancel_futures=True)
             
             # Clear model caches
+            models_count = len(self.loaded_models)
             self.loaded_models.clear()
             self.model_configs.clear()
             
             # Clean temporary directory
             if self.temp_dir.exists():
-                for file in self.temp_dir.glob("*"):
+                temp_files = list(self.temp_dir.glob("*"))
+                for file in temp_files:
                     try:
                         file.unlink()
-                    except:
-                        pass
+                    except Exception as e:
+                        logger.warning("Failed to delete temp file", extra={
+                            'event': 'temp_file_delete_failed',
+                            'file': str(file),
+                            'error': str(e)
+                        })
             
-            logger.info("TTS service cleanup completed")
+            logger.info("Service cleanup completed", extra={
+                'event': 'cleanup_complete',
+                'models_cleared': models_count,
+                'temp_files_cleaned': len(temp_files) if 'temp_files' in locals() else 0
+            })
             
         except Exception as e:
-            logger.error(f"Cleanup error: {e}")
+            logger.error("Cleanup error", extra={
+                'event': 'cleanup_error',
+                'error': str(e),
+                'error_type': type(e).__name__
+            }, exc_info=True)
