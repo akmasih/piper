@@ -1,0 +1,142 @@
+# File: endpoints.txt
+# Path: /root/piper/endpoints.txt
+# Piper TTS Service API Endpoints
+
+## Base URL
+http://100.109.226.109:8000
+
+## Supported Languages
+en, de, fr, es, it, fa
+
+---
+
+## 1. Root - Service Info
+GET /
+
+Example:
+curl http://100.109.226.109:8000/
+
+---
+
+## 2. Health Check
+GET /health
+
+Example:
+curl http://100.109.226.109:8000/health
+
+Response:
+{
+  "status": "healthy",
+  "service": "piper-tts",
+  "models_loaded": 6,
+  "available_languages": ["en", "de", "fr", "es", "it", "fa"]
+}
+
+---
+
+## 3. Get Available Voices
+GET /tts/voices
+
+Example:
+curl http://100.109.226.109:8000/tts/voices
+
+Response:
+{
+  "en": [{"voice_id": "en_US-lessac-high", "language": "en", "name": "lessac", "quality": "high"}],
+  "de": [{"voice_id": "de_DE-thorsten-high", "language": "de", "name": "thorsten", "quality": "high"}]
+}
+
+---
+
+## 4. Generate Speech (Main Endpoint)
+POST /tts/generate
+
+Request Body:
+{
+  "text": "Your text here",
+  "language": "en",
+  "speed": 1.0
+}
+
+Parameters:
+- text: string (1-5000 characters, required)
+- language: string (en|de|fr|es|it|fa, required)
+- speed: float (0.5-2.0, optional, default: 1.0)
+
+Example - English:
+curl -X POST http://100.109.226.109:8000/tts/generate \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Hello world","language":"en","speed":1.0}' \
+  --output speech.mp3
+
+Example - German:
+curl -X POST http://100.109.226.109:8000/tts/generate \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Hallo Welt","language":"de","speed":1.0}' \
+  --output speech.mp3
+
+Example - Persian:
+curl -X POST http://100.109.226.109:8000/tts/generate \
+  -H "Content-Type: application/json" \
+  -d '{"text":"سلام دنیا","language":"fa","speed":1.0}' \
+  --output speech.mp3
+
+---
+
+## 5. Prometheus Metrics
+GET /metrics
+
+Example:
+curl http://100.109.226.109:8000/metrics
+
+---
+
+## Python Usage Example
+
+import requests
+
+def generate_speech(text, language="en", speed=1.0):
+    url = "http://100.109.226.109:8000/tts/generate"
+    payload = {"text": text, "language": language, "speed": speed}
+    
+    response = requests.post(url, json=payload)
+    
+    if response.status_code == 200:
+        with open("output.mp3", "wb") as f:
+            f.write(response.content)
+        return "Audio saved"
+    else:
+        return f"Error: {response.status_code}"
+
+# Usage
+generate_speech("Hello from Python", "en")
+
+---
+
+## JavaScript/Node.js Usage Example
+
+const axios = require('axios');
+const fs = require('fs');
+
+async function generateSpeech(text, language = 'en', speed = 1.0) {
+    const response = await axios.post(
+        'http://100.109.226.109:8000/tts/generate',
+        { text, language, speed },
+        { responseType: 'arraybuffer' }
+    );
+    
+    fs.writeFileSync('output.mp3', response.data);
+    return 'Audio saved';
+}
+
+// Usage
+generateSpeech('Hello from Node.js', 'en');
+
+---
+
+## Status Codes
+200 - Success
+400 - Bad Request (invalid parameters)
+403 - Forbidden (unauthorized IP)
+500 - Generation failed
+503 - Service not ready
