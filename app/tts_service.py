@@ -1,4 +1,6 @@
-# /root/piper/app/tts_service.py
+# File: app/tts_service.py - /root/piper/app/tts_service.py
+# Core TTS service implementation using Piper
+
 import asyncio
 import io
 import json
@@ -14,12 +16,18 @@ from concurrent.futures import ThreadPoolExecutor
 from pydub import AudioSegment
 import numpy as np
 
-from config import settings
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 class PiperTTSService:
+    """
+    Piper TTS Service Handler
+    Manages voice models and generates speech from text
+    """
+    
     def __init__(self):
+        """Initialize TTS service with configuration"""
         self.models_dir = Path("/app/models")
         self.temp_dir = Path(settings.TEMP_DIR)
         self.loaded_models = {}
@@ -27,6 +35,7 @@ class PiperTTSService:
         self.executor = ThreadPoolExecutor(max_workers=settings.WORKER_THREADS)
         self._ready = False
         
+        # Language to model name mapping from settings
         self.language_models = {
             'en': settings.MODEL_EN,
             'de': settings.MODEL_DE,
@@ -37,10 +46,16 @@ class PiperTTSService:
         }
         
     async def initialize(self):
+        """
+        Initialize the TTS service
+        Creates directories and prepares all language models
+        """
         try:
+            # Create required directories
             self.models_dir.mkdir(parents=True, exist_ok=True)
             self.temp_dir.mkdir(parents=True, exist_ok=True)
             
+            # Prepare all language models
             for lang, model_name in self.language_models.items():
                 await self._prepare_model(lang, model_name)
             
@@ -52,6 +67,14 @@ class PiperTTSService:
             raise
     
     async def _prepare_model(self, language: str, model_name: str):
+        """
+        Prepare a voice model for a specific language
+        Downloads model if not present and loads configuration
+        
+        Args:
+            language: Language code (en, de, fr, es, it, fa)
+            model_name: Name of the Piper voice model
+        """
         try:
             model_dir = self.models_dir / language
             model_dir.mkdir(parents=True, exist_ok=True)
@@ -59,10 +82,12 @@ class PiperTTSService:
             model_file = model_dir / f"{model_name}.onnx"
             config_file = model_dir / f"{model_name}.onnx.json"
             
+            # Download model if not present
             if not model_file.exists() or not config_file.exists():
                 logger.info(f"Downloading model {model_name} for {language}")
                 await self._download_model(model_name, model_dir)
             
+            # Load model configuration
             if config_file.exists():
                 with open(config_file, 'r') as f:
                     config = json.load(f)
@@ -79,6 +104,13 @@ class PiperTTSService:
             logger.error(f"Failed to prepare model for {language}: {e}")
     
     async def _download_model(self, model_name: str, output_dir: Path):
+        """
+        Download a Piper voice model using piper CLI
+        
+        Args:
+            model_name: Name of the model to download
+            output_dir: Directory to save the model files
+        """
         loop = asyncio.get_event_loop()
         
         def download():
@@ -106,15 +138,42 @@ class PiperTTSService:
         await loop.run_in_executor(self.executor, download)
     
     def is_ready(self) -> bool:
+        """
+        Check if service is ready to process requests
+        
+        Returns:
+            True if service is initialized and models are loaded
+        """
         return self._ready and len(self.loaded_models) > 0
     
     def get_available_languages(self) -> list:
+        """
+        Get list of available language codes
+        
+        Returns:
+            List of language codes with loaded models
+        """
         return list(self.loaded_models.keys())
     
     def get_model_name(self, language: str) -> str:
+        """
+        Get the model name for a specific language
+        
+        Args:
+            language: Language code
+            
+        Returns:
+            Model name or "unknown" if not found
+        """
         return self.loaded_models.get(language, "unknown")
     
     async def get_voices(self) -> Dict[str, list]:
+        """
+        Get information about all available voices
+        
+        Returns:
+            Dictionary mapping language codes to list of voice information
+        """
         voices = {}
         
         for lang, model_name in self.loaded_models.items():
@@ -133,6 +192,15 @@ class PiperTTSService:
         return voices
     
     def _extract_quality(self, model_name: str) -> str:
+        """
+        Extract quality level from model name
+        
+        Args:
+            model_name: Name of the model
+            
+        Returns:
+            Quality level string
+        """
         if 'high' in model_name:
             return 'high'
         elif 'medium' in model_name:
@@ -150,17 +218,37 @@ class PiperTTSService:
         voice: Optional[str] = None,
         speed: float = 1.0
     ) -> BinaryIO:
+        """
+        Generate speech audio from text
         
+        Args:
+            text: Text to convert to speech
+            language: Language code
+            voice: Optional specific voice name (currently unused)
+            speed: Speech speed multiplier (0.5 to 2.0)
+            
+        Returns:
+            Binary IO object containing MP3 audio data
+            
+        Raises:
+            ValueError: If language not supported or text is empty
+            Exception: If generation fails
+        """
+        
+        # Validate language
         if language not in self.loaded_models:
             raise ValueError(f"Language {language} not supported")
         
+        # Validate text
         if not text.strip():
             raise ValueError("Text cannot be empty")
         
+        # Get model configuration
         model_config = self.model_configs[language]
         model_path = model_config['model_path']
         config_path = model_config['config_path']
         
+        # Generate speech using Piper
         audio_data = await self._run_piper(
             text=text,
             model_path=model_path,
@@ -168,6 +256,7 @@ class PiperTTSService:
             speed=speed
         )
         
+        # Convert to MP3 format
         mp3_data = await self._convert_to_mp3(audio_data)
         
         return io.BytesIO(mp3_data)
@@ -179,10 +268,26 @@ class PiperTTSService:
         config_path: str,
         speed: float
     ) -> bytes:
+        """
+        Run Piper TTS engine to generate speech
+        
+        Args:
+            text: Text to synthesize
+            model_path: Path to ONNX model file
+            config_path: Path to model config file
+            speed: Speech speed multiplier
+            
+        Returns:
+            WAV audio data as bytes
+            
+        Raises:
+            Exception: If Piper execution fails or times out
+        """
         loop = asyncio.get_event_loop()
         
         def run_tts():
             try:
+                # Create temporary text file
                 with tempfile.NamedTemporaryFile(
                     mode='w',
                     suffix='.txt',
@@ -192,6 +297,7 @@ class PiperTTSService:
                     text_file.write(text)
                     text_file_path = text_file.name
                 
+                # Create temporary WAV file
                 with tempfile.NamedTemporaryFile(
                     suffix='.wav',
                     dir=str(self.temp_dir),
@@ -200,6 +306,7 @@ class PiperTTSService:
                     wav_file_path = wav_file.name
                 
                 try:
+                    # Build Piper command
                     cmd = [
                         "piper",
                         "--model", model_path,
@@ -207,10 +314,12 @@ class PiperTTSService:
                         "--output_file", wav_file_path
                     ]
                     
+                    # Add speed control if needed
                     if speed != 1.0:
                         length_scale = 1.0 / speed
                         cmd.extend(["--length-scale", str(length_scale)])
                     
+                    # Run Piper with text input
                     with open(text_file_path, 'r') as f:
                         result = subprocess.run(
                             cmd,
@@ -222,12 +331,14 @@ class PiperTTSService:
                     if result.returncode != 0:
                         raise Exception(f"Piper failed: {result.stderr.decode()}")
                     
+                    # Read generated WAV file
                     with open(wav_file_path, 'rb') as f:
                         wav_data = f.read()
                     
                     return wav_data
                     
                 finally:
+                    # Clean up temporary files
                     for path in [text_file_path, wav_file_path]:
                         try:
                             if os.path.exists(path):
@@ -243,12 +354,26 @@ class PiperTTSService:
         return await loop.run_in_executor(self.executor, run_tts)
     
     async def _convert_to_mp3(self, wav_data: bytes) -> bytes:
+        """
+        Convert WAV audio data to MP3 format
+        
+        Args:
+            wav_data: WAV audio data as bytes
+            
+        Returns:
+            MP3 audio data as bytes
+            
+        Raises:
+            Exception: If conversion fails
+        """
         loop = asyncio.get_event_loop()
         
         def convert():
             try:
+                # Load WAV data
                 audio = AudioSegment.from_wav(io.BytesIO(wav_data))
                 
+                # Export as MP3
                 mp3_buffer = io.BytesIO()
                 audio.export(
                     mp3_buffer,
@@ -266,11 +391,19 @@ class PiperTTSService:
         return await loop.run_in_executor(self.executor, convert)
     
     async def cleanup(self):
+        """
+        Clean up resources and temporary files
+        Called during service shutdown
+        """
         try:
+            # Shutdown thread pool executor
             self.executor.shutdown(wait=True, cancel_futures=True)
+            
+            # Clear model caches
             self.loaded_models.clear()
             self.model_configs.clear()
             
+            # Clean temporary directory
             if self.temp_dir.exists():
                 for file in self.temp_dir.glob("*"):
                     try:
