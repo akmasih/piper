@@ -224,7 +224,7 @@ async def verify_backend_ip(request: Request, call_next):
     client_ip = request.client.host
     
     # Allow health checks and metrics from localhost for Docker health check and monitoring
-    if request.url.path in ["/health", "/metrics"] and client_ip in ["127.0.0.1", "::1"]:
+    if request.url.path in ["/piper/health", "/piper/metrics"] and client_ip in ["127.0.0.1", "::1"]:
         return await call_next(request)
     
     # Verify client IP matches backend IP
@@ -239,7 +239,7 @@ async def verify_backend_ip(request: Request, call_next):
     
     return await call_next(request)
 
-@app.get("/health", response_model=HealthResponse)
+@app.get("/piper/health", response_model=HealthResponse)
 async def health_check():
     """
     Health check endpoint
@@ -262,7 +262,7 @@ async def health_check():
         uptime_seconds=round(uptime, 2)
     )
 
-@app.get("/metrics")
+@app.get("/piper/metrics")
 async def metrics():
     """
     Prometheus metrics endpoint
@@ -273,7 +273,7 @@ async def metrics():
         media_type="text/plain"
     )
 
-@app.get("/tts/voices", response_model=Dict[str, list[VoiceInfo]])
+@app.get("/piper/tts/voices", response_model=Dict[str, list[VoiceInfo]])
 async def get_voices():
     """
     Get available voices for all languages
@@ -300,7 +300,7 @@ async def get_voices():
         }, exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to retrieve voices")
 
-@app.post("/tts/generate")
+@app.post("/piper/tts/generate")
 async def generate_speech(request: TTSRequest):
     """
     Generate speech from text
@@ -387,7 +387,7 @@ async def generate_speech(request: TTSRequest):
         TTS_GENERATION_COUNT.labels(language=request.language, status='error').inc()
         raise HTTPException(status_code=500, detail="Speech generation failed")
 
-@app.get("/")
+@app.get("/piper/")
 async def root():
     """
     Root endpoint
@@ -397,7 +397,8 @@ async def root():
         "service": "Piper TTS",
         "version": "1.0.0",
         "status": "running",
-        "server": settings.SERVER_NAME
+        "server": settings.SERVER_NAME,
+        "prefix": "/piper/"
     }
 
 if __name__ == "__main__":
