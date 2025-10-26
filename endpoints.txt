@@ -1,302 +1,126 @@
-# File: endpoints.txt
-# Path: /root/piper/endpoints.txt
-# Piper TTS Service API Endpoints
+File: piper_endpoints.txt
+Path: /root/piper/piper_endpoints.txt
+Piper TTS Service - API Endpoints Reference
 
-## Base URL
-http://100.109.226.109:8000
+Base URL: http://100.109.226.109:8000
 
-## API Prefix
-All endpoints start with: /piper/
+================================================================================
+ENDPOINTS
+================================================================================
 
-## Supported Languages
-en, de, fr, es, it, fa
+1. ROOT - Service Information
+   GET /piper/
+   
+   Example:
+   curl http://100.109.226.109:8000/piper/
+   
+   Returns basic service metadata and status
 
----
+--------------------------------------------------------------------------------
 
-## 1. Root - Service Info
-GET /piper/
+2. HEALTH CHECK
+   GET /piper/health
+   
+   Example:
+   curl http://100.109.226.109:8000/piper/health
+   
+   Returns service health status and loaded models count
 
-Example:
-curl http://100.109.226.109:8000/piper/
+--------------------------------------------------------------------------------
 
-Response:
-{
-  "service": "Piper TTS",
-  "version": "1.0.0",
-  "status": "running",
-  "server": "piper",
-  "prefix": "/piper/"
-}
+3. PROMETHEUS METRICS
+   GET /piper/metrics
+   
+   Example:
+   curl http://100.109.226.109:8000/piper/metrics
+   
+   Returns Prometheus-formatted metrics for monitoring
 
----
+--------------------------------------------------------------------------------
 
-## 2. Health Check
-GET /piper/health
+4. GET AVAILABLE VOICES
+   GET /piper/tts/voices
+   
+   Example:
+   curl http://100.109.226.109:8000/piper/tts/voices
+   
+   Returns list of available voices for all languages
 
-Example:
-curl http://100.109.226.109:8000/piper/health
+--------------------------------------------------------------------------------
 
-Response:
-{
-  "status": "healthy",
-  "service": "piper-tts",
-  "models_loaded": 6,
-  "available_languages": ["en", "de", "fr", "es", "it", "fa"],
-  "uptime_seconds": 123.45
-}
+5. GENERATE SPEECH (PRIMARY ENDPOINT)
+   POST /piper/tts/generate
+   
+   Parameters:
+   - text: string (required, 1-5000 chars)
+   - language: string (required, en|de|fr|es|it|fa)
+   - speed: float (optional, 0.5-2.0, default: 1.0)
+   - voice: string (optional, specific voice name)
+   
+   Example - English:
+   curl -X POST http://100.109.226.109:8000/piper/tts/generate \
+     -H "Content-Type: application/json" \
+     -d '{"text":"Hello world","language":"en","speed":1.0}' \
+     --output speech.mp3
+   
+   Example - German:
+   curl -X POST http://100.109.226.109:8000/piper/tts/generate \
+     -H "Content-Type: application/json" \
+     -d '{"text":"Hallo Welt","language":"de"}' \
+     --output speech.mp3
+   
+   Example - Persian:
+   curl -X POST http://100.109.226.109:8000/piper/tts/generate \
+     -H "Content-Type: application/json" \
+     -d '{"text":"سلام دنیا","language":"fa"}' \
+     --output speech.mp3
+   
+   Example - French:
+   curl -X POST http://100.109.226.109:8000/piper/tts/generate \
+     -H "Content-Type: application/json" \
+     -d '{"text":"Bonjour le monde","language":"fr"}' \
+     --output speech.mp3
+   
+   Example - Spanish:
+   curl -X POST http://100.109.226.109:8000/piper/tts/generate \
+     -H "Content-Type: application/json" \
+     -d '{"text":"Hola mundo","language":"es"}' \
+     --output speech.mp3
+   
+   Example - Italian:
+   curl -X POST http://100.109.226.109:8000/piper/tts/generate \
+     -H "Content-Type: application/json" \
+     -d '{"text":"Ciao mondo","language":"it"}' \
+     --output speech.mp3
+   
+   Converts text to speech and returns MP3 audio file
 
----
-
-## 3. Get Available Voices
-GET /piper/tts/voices
-
-Example:
-curl http://100.109.226.109:8000/piper/tts/voices
-
-Response:
-{
-  "en": [{
-    "voice_id": "en_US-lessac-high",
-    "language": "en",
-    "name": "lessac",
-    "quality": "high",
-    "sample_rate": 22050
-  }],
-  "de": [{
-    "voice_id": "de_DE-thorsten-high",
-    "language": "de",
-    "name": "thorsten",
-    "quality": "high",
-    "sample_rate": 22050
-  }]
-}
-
----
-
-## 4. Generate Speech (Main Endpoint)
-POST /piper/tts/generate
-
-Request Body:
-{
-  "text": "Your text here",
-  "language": "en",
-  "speed": 1.0
-}
-
-Parameters:
-- text: string (1-5000 characters, required)
-- language: string (en|de|fr|es|it|fa, required)
-- voice: string (optional, specific voice name)
-- speed: float (0.5-2.0, optional, default: 1.0)
-
-Example - English:
-curl -X POST http://100.109.226.109:8000/piper/tts/generate \
-  -H "Content-Type: application/json" \
-  -d '{"text":"Hello world","language":"en","speed":1.0}' \
-  --output speech.mp3
-
-Example - German:
-curl -X POST http://100.109.226.109:8000/piper/tts/generate \
-  -H "Content-Type: application/json" \
-  -d '{"text":"Hallo Welt","language":"de","speed":1.0}' \
-  --output speech.mp3
-
-Example - Persian:
-curl -X POST http://100.109.226.109:8000/piper/tts/generate \
-  -H "Content-Type: application/json" \
-  -d '{"text":"سلام دنیا","language":"fa","speed":1.0}' \
-  --output speech.mp3
-
-Example - French:
-curl -X POST http://100.109.226.109:8000/piper/tts/generate \
-  -H "Content-Type: application/json" \
-  -d '{"text":"Bonjour le monde","language":"fr","speed":1.0}' \
-  --output speech.mp3
-
-Example - Spanish:
-curl -X POST http://100.109.226.109:8000/piper/tts/generate \
-  -H "Content-Type: application/json" \
-  -d '{"text":"Hola mundo","language":"es","speed":1.0}' \
-  --output speech.mp3
-
-Example - Italian:
-curl -X POST http://100.109.226.109:8000/piper/tts/generate \
-  -H "Content-Type: application/json" \
-  -d '{"text":"Ciao mondo","language":"it","speed":1.0}' \
-  --output speech.mp3
-
----
-
-## 5. Prometheus Metrics
-GET /piper/metrics
-
-Example:
-curl http://100.109.226.109:8000/piper/metrics
-
-Returns Prometheus-formatted metrics including:
-- piper_requests_total
-- piper_request_duration_seconds
-- piper_tts_generations_total
-- piper_tts_generation_duration_seconds
-- piper_active_requests
-- piper_model_loaded
-
----
-
-## Python Usage Example
-
-import requests
-
-def generate_speech(text, language="en", speed=1.0):
-    """Generate speech using Piper TTS API"""
-    url = "http://100.109.226.109:8000/piper/tts/generate"
-    payload = {
-        "text": text,
-        "language": language,
-        "speed": speed
-    }
-    
-    response = requests.post(url, json=payload)
-    
-    if response.status_code == 200:
-        with open("output.mp3", "wb") as f:
-            f.write(response.content)
-        return "Audio saved to output.mp3"
-    else:
-        return f"Error: {response.status_code} - {response.text}"
-
-# Usage examples
-generate_speech("Hello from Python", "en")
-generate_speech("Hallo aus Python", "de")
-generate_speech("سلام از پایتون", "fa")
-
-# Check available voices
-def get_voices():
-    """Get all available voices"""
-    url = "http://100.109.226.109:8000/piper/tts/voices"
-    response = requests.get(url)
-    return response.json()
-
-# Health check
-def check_health():
-    """Check service health"""
-    url = "http://100.109.226.109:8000/piper/health"
-    response = requests.get(url)
-    return response.json()
-
----
-
-## JavaScript/Node.js Usage Example
-
-const axios = require('axios');
-const fs = require('fs');
-
-async function generateSpeech(text, language = 'en', speed = 1.0) {
-    const url = 'http://100.109.226.109:8000/piper/tts/generate';
-    
-    try {
-        const response = await axios.post(url, {
-            text: text,
-            language: language,
-            speed: speed
-        }, {
-            responseType: 'arraybuffer'
-        });
-        
-        fs.writeFileSync('output.mp3', response.data);
-        console.log('Audio saved to output.mp3');
-        return response.data;
-    } catch (error) {
-        console.error('Error:', error.response?.data || error.message);
-        throw error;
-    }
-}
-
-// Usage examples
-generateSpeech('Hello from Node.js', 'en');
-generateSpeech('Hallo aus Node.js', 'de');
-
-// Get available voices
-async function getVoices() {
-    const url = 'http://100.109.226.109:8000/piper/tts/voices';
-    const response = await axios.get(url);
-    return response.data;
-}
-
-// Health check
-async function checkHealth() {
-    const url = 'http://100.109.226.109:8000/piper/health';
-    const response = await axios.get(url);
-    return response.data;
-}
-
----
-
-## cURL Testing Examples
-
-# Test health
-curl http://100.109.226.109:8000/piper/health
-
-# Get all voices
-curl http://100.109.226.109:8000/piper/tts/voices | jq
-
-# Generate speech with different speeds
-curl -X POST http://100.109.226.109:8000/piper/tts/generate \
-  -H "Content-Type: application/json" \
-  -d '{"text":"Fast speech","language":"en","speed":1.5}' \
-  --output fast.mp3
-
-curl -X POST http://100.109.226.109:8000/piper/tts/generate \
-  -H "Content-Type: application/json" \
-  -d '{"text":"Slow speech","language":"en","speed":0.7}' \
-  --output slow.mp3
-
-# Get metrics
-curl http://100.109.226.109:8000/piper/metrics
-
----
-
-## Response Headers
-
-Successful speech generation includes custom headers:
-- Content-Type: audio/mpeg
-- Content-Disposition: inline; filename=speech_{language}.mp3
-- Cache-Control: no-cache
-- X-TTS-Language: {language}
-- X-TTS-Model: {model_name}
-- X-Generation-Duration: {duration_seconds}
-
----
-
-## Status Codes
+================================================================================
+RESPONSE CODES
+================================================================================
 
 200 - Success
 400 - Bad Request (invalid parameters)
-403 - Forbidden (unauthorized IP - only backend server allowed)
-500 - Generation failed
-503 - Service not ready
+403 - Forbidden (unauthorized IP)
+500 - Internal Server Error
+503 - Service Not Ready
 
----
+================================================================================
+SUPPORTED LANGUAGES
+================================================================================
 
-## Error Response Format
+en - English (US)
+de - German
+fr - French
+es - Spanish
+it - Italian
+fa - Persian (Farsi)
 
-{
-  "detail": "Error message description"
-}
+================================================================================
+SECURITY
+================================================================================
 
----
+Only accepts requests from: 100.116.174.15 (backend server)
+Exceptions: /piper/health and /piper/metrics allow localhost access
 
-## Rate Limiting
-
-Note: Rate limiting can be enabled via environment variables:
-- RATE_LIMIT_ENABLED=true
-- RATE_LIMIT_PER_MINUTE=100
-
----
-
-## Security Notes
-
-- Service only accepts requests from backend server (100.116.174.15)
-- All endpoints require authorization except /piper/health and /piper/metrics from localhost
-- Logs are sent to centralized Loki server for monitoring
-- Metrics are exposed for Prometheus scraping
+================================================================================
