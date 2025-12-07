@@ -382,12 +382,16 @@ class PiperTTSService:
         
         # Validate language
         if language not in self.loaded_models:
+            available = list(self.loaded_models.keys())
             logger.warning("Unsupported language requested", extra={
                 'event': 'unsupported_language',
                 'language': language,
-                'available_languages': list(self.loaded_models.keys())
+                'available_languages': available
             })
-            raise ValueError(f"Language {language} not supported")
+            raise ValueError(
+                f"Language '{language}' is not available. "
+                f"Supported languages: {', '.join(available)}"
+            )
         
         # Validate text
         if not text.strip():

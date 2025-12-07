@@ -2,14 +2,16 @@
 # FastAPI main application for Piper TTS service with centralized logging and monitoring
 
 import logging
+import re
 import sys
 import time
 from contextlib import asynccontextmanager
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, Field, validator
 from pythonjsonlogger import jsonlogger
 from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
@@ -17,6 +19,14 @@ import uvicorn
 
 from app.config import settings
 from app.tts_service import PiperTTSService
+
+
+class ErrorResponse(BaseModel):
+    """Standard error response model"""
+    error: str
+    message: str
+    details: Optional[Dict[str, Any]] = None
+    hint: Optional[str] = None
 
 # Prometheus Metrics
 REQUEST_COUNT = Counter(
@@ -138,6 +148,150 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """
+    Custom handler for validation errors
+    Provides user-friendly error messages especially for language validation
+    """
+    errors = exc.errors()
+    
+    # Check if this is a language validation error
+    for error in errors:
+        if 'language' in error.get('loc', []):
+            invalid_value = error.get('input', 'unknown')
+            
+            logger.warning("Invalid language requested", extra={
+                'event': 'invalid_language_request',
+                'requested_language': invalid_value,
+                'available_languages': settings.SUPPORTED_LANGUAGES
+            })
+            
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "error": "unsupported_language",
+                    "message": f"Language '{invalid_value}' is not supported",
+                    "details": {
+                        "requested_language": invalid_value,
+                        "available_languages": settings.SUPPORTED_LANGUAGES,
+                        "total_supported": len(settings.SUPPORTED_LANGUAGES)
+                    },
+                    "hint": "Use GET /piper/tts/languages for detailed information about supported languages"
+                }
+            )
+    
+    # Check if this is a text validation error
+    for error in errors:
+        if 'text' in error.get('loc', []):
+            error_type = error.get('type', '')
+            
+            if 'too_short' in error_type or 'min_length' in error_type:
+                return JSONResponse(
+                    status_code=400,
+                    content={
+                        "error": "text_too_short",
+                        "message": "Text cannot be empty",
+                        "details": {
+                            "min_length": 1,
+                            "max_length": settings.MAX_TEXT_LENGTH
+                        },
+                        "hint": "Provide at least 1 character of text"
+                    }
+                )
+            
+            if 'too_long' in error_type or 'max_length' in error_type:
+                return JSONResponse(
+                    status_code=400,
+                    content={
+                        "error": "text_too_long",
+                        "message": f"Text exceeds maximum length of {settings.MAX_TEXT_LENGTH} characters",
+                        "details": {
+                            "max_length": settings.MAX_TEXT_LENGTH,
+                            "provided_length": len(error.get('input', ''))
+                        },
+                        "hint": f"Reduce text to {settings.MAX_TEXT_LENGTH} characters or less"
+                    }
+                )
+    
+    # Check if this is a speed validation error
+    for error in errors:
+        if 'speed' in error.get('loc', []):
+            invalid_value = error.get('input', 'unknown')
+            
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "error": "invalid_speed",
+                    "message": f"Speed value '{invalid_value}' is out of range",
+                    "details": {
+                        "provided_speed": invalid_value,
+                        "min_speed": 0.5,
+                        "max_speed": 2.0,
+                        "default_speed": 1.0
+                    },
+                    "hint": "Speed must be between 0.5 and 2.0"
+                }
+            )
+    
+    # Generic validation error for other cases
+    formatted_errors = []
+    for error in errors:
+        formatted_errors.append({
+            "field": ".".join(str(loc) for loc in error.get('loc', [])),
+            "message": error.get('msg', 'Validation error'),
+            "type": error.get('type', 'unknown')
+        })
+    
+    return JSONResponse(
+        status_code=400,
+        content={
+            "error": "validation_error",
+            "message": "Request validation failed",
+            "details": {
+                "errors": formatted_errors
+            },
+            "hint": "Check the request parameters and try again"
+        }
+    )
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """
+    Custom handler for HTTP exceptions
+    Provides consistent error response format
+    """
+    error_mapping = {
+        400: "bad_request",
+        403: "forbidden",
+        404: "not_found",
+        500: "internal_error",
+        503: "service_unavailable"
+    }
+    
+    error_code = error_mapping.get(exc.status_code, "error")
+    
+    response_content = {
+        "error": error_code,
+        "message": exc.detail
+    }
+    
+    # Add helpful hints based on error type
+    if exc.status_code == 403:
+        response_content["hint"] = "This endpoint only accepts requests from authorized backend servers"
+    elif exc.status_code == 503:
+        response_content["hint"] = "The service is starting up or temporarily unavailable. Please try again shortly"
+        response_content["details"] = {
+            "health_check": "/piper/health"
+        }
+    
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=response_content
+    )
 
 # Language pattern for validation - 15 supported languages
 LANGUAGE_PATTERN = "^(en|de|fr|es|it|fa|zh|ar|ru|pt|ja|sw|tr|ko|vi)$"
@@ -263,11 +417,28 @@ async def health_check():
     Returns service status and available models
     """
     if not tts_service or not tts_service.is_ready():
+        models_loaded = len(tts_service.loaded_models) if tts_service else 0
+        is_ready = tts_service.is_ready() if tts_service else False
+        
         logger.warning("Health check failed - service not ready", extra={
             'event': 'health_check_failed',
-            'service_ready': tts_service.is_ready() if tts_service else False
+            'service_ready': is_ready,
+            'models_loaded': models_loaded
         })
-        raise HTTPException(status_code=503, detail="Service not ready")
+        
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "service_not_ready",
+                "message": "The TTS service is not ready to accept requests",
+                "details": {
+                    "service_initialized": tts_service is not None,
+                    "models_loaded": models_loaded,
+                    "is_ready": is_ready
+                },
+                "hint": "The service may still be starting up. Please wait and try again"
+            }
+        )
     
     uptime = time.time() - app.state.start_time if hasattr(app.state, 'start_time') else 0
     
@@ -301,7 +472,14 @@ async def get_voices():
         logger.error("Voices request failed - service not initialized", extra={
             'event': 'voices_request_failed'
         })
-        raise HTTPException(status_code=503, detail="Service not initialized")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "service_not_initialized",
+                "message": "The TTS service is not initialized",
+                "hint": "Check /piper/health for service status"
+            }
+        )
     
     try:
         voices = await tts_service.get_voices()
@@ -316,7 +494,14 @@ async def get_voices():
             'error': str(e),
             'error_type': type(e).__name__
         }, exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to retrieve voices")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "voices_retrieval_failed",
+                "message": "Failed to retrieve available voices",
+                "hint": "Please try again or check /piper/health for service status"
+            }
+        )
 
 @app.get("/piper/tts/languages", response_model=Dict[str, LanguageInfo])
 async def get_languages():
@@ -328,7 +513,14 @@ async def get_languages():
         logger.error("Languages request failed - service not initialized", extra={
             'event': 'languages_request_failed'
         })
-        raise HTTPException(status_code=503, detail="Service not initialized")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "service_not_initialized",
+                "message": "The TTS service is not initialized",
+                "hint": "Check /piper/health for service status"
+            }
+        )
     
     try:
         language_info = settings.get_language_info()
@@ -357,7 +549,14 @@ async def get_languages():
             'error': str(e),
             'error_type': type(e).__name__
         }, exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to retrieve languages")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "languages_retrieval_failed",
+                "message": "Failed to retrieve language information",
+                "hint": "Please try again or check /piper/health for service status"
+            }
+        )
 
 @app.post("/piper/tts/generate")
 async def generate_speech(request: TTSRequest):
@@ -370,7 +569,18 @@ async def generate_speech(request: TTSRequest):
             'event': 'tts_generation_failed',
             'reason': 'service_not_initialized'
         })
-        raise HTTPException(status_code=503, detail="Service not initialized")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "service_not_initialized",
+                "message": "The TTS service is not initialized",
+                "details": {
+                    "requested_language": request.language,
+                    "text_length": len(request.text)
+                },
+                "hint": "The service may still be starting up. Check /piper/health for status"
+            }
+        )
     
     start_time = time.time()
     
@@ -396,7 +606,19 @@ async def generate_speech(request: TTSRequest):
                 'language': request.language
             })
             TTS_GENERATION_COUNT.labels(language=request.language, status='failed').inc()
-            raise HTTPException(status_code=500, detail="Failed to generate audio")
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "error": "no_audio_generated",
+                    "message": "The TTS engine did not produce any audio output",
+                    "details": {
+                        "language": request.language,
+                        "text_length": len(request.text),
+                        "model": tts_service.get_model_name(request.language)
+                    },
+                    "hint": "This may be due to unsupported characters in the text. Try simplifying the input"
+                }
+            )
         
         duration = time.time() - start_time
         
@@ -426,25 +648,81 @@ async def generate_speech(request: TTSRequest):
         
     except ValueError as e:
         duration = time.time() - start_time
+        error_message = str(e)
+        
         logger.warning("Invalid TTS request", extra={
             'event': 'tts_generation_invalid',
             'language': request.language,
-            'error': str(e),
+            'error': error_message,
             'duration': round(duration, 3)
         })
         TTS_GENERATION_COUNT.labels(language=request.language, status='invalid').inc()
-        raise HTTPException(status_code=400, detail=str(e))
+        
+        # Check if this is a language-related error
+        if "not available" in error_message or "not supported" in error_message:
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "error": "unsupported_language",
+                    "message": error_message,
+                    "details": {
+                        "requested_language": request.language,
+                        "available_languages": tts_service.get_available_languages() if tts_service else [],
+                        "generation_time": round(duration, 3)
+                    },
+                    "hint": "Use GET /piper/tts/languages for detailed information about supported languages"
+                }
+            )
+        
+        # Check if this is a text-related error
+        if "empty" in error_message.lower():
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "error": "invalid_text",
+                    "message": error_message,
+                    "details": {
+                        "text_length": len(request.text) if request.text else 0
+                    },
+                    "hint": "Provide non-empty text for speech generation"
+                }
+            )
+        
+        # Generic value error
+        return JSONResponse(
+            status_code=400,
+            content={
+                "error": "invalid_request",
+                "message": error_message,
+                "hint": "Check your request parameters"
+            }
+        )
     except Exception as e:
         duration = time.time() - start_time
+        error_message = str(e)
+        
         logger.error("TTS generation error", extra={
             'event': 'tts_generation_error',
             'language': request.language,
-            'error': str(e),
+            'error': error_message,
             'error_type': type(e).__name__,
             'duration': round(duration, 3)
         }, exc_info=True)
         TTS_GENERATION_COUNT.labels(language=request.language, status='error').inc()
-        raise HTTPException(status_code=500, detail="Speech generation failed")
+        
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "generation_failed",
+                "message": "Speech generation failed due to an internal error",
+                "details": {
+                    "language": request.language,
+                    "text_length": len(request.text),
+                    "generation_time": round(duration, 3)
+                },
+                "hint": "Please try again. If the problem persists, check /piper/health for service status"
+            }
+        )
 
 @app.get("/piper/")
 async def root():

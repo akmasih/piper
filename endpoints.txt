@@ -14,7 +14,16 @@ ENDPOINTS
    Example:
    curl http://100.109.226.109:8000/piper/
    
-   Returns basic service metadata, status, and supported languages list
+   Response:
+   {
+     "service": "Piper TTS",
+     "version": "1.1.0",
+     "status": "running",
+     "server": "piper",
+     "prefix": "/piper/",
+     "supported_languages": ["en", "de", "fr", ...],
+     "total_languages": 15
+   }
 
 --------------------------------------------------------------------------------
 
@@ -24,7 +33,27 @@ ENDPOINTS
    Example:
    curl http://100.109.226.109:8000/piper/health
    
-   Returns service health status, version, and loaded models count
+   Success Response (200):
+   {
+     "status": "healthy",
+     "service": "piper-tts",
+     "version": "1.1.0",
+     "models_loaded": 15,
+     "available_languages": ["en", "de", "fr", ...],
+     "uptime_seconds": 3600.5
+   }
+   
+   Error Response (503):
+   {
+     "error": "service_not_ready",
+     "message": "The TTS service is not ready to accept requests",
+     "details": {
+       "service_initialized": true,
+       "models_loaded": 0,
+       "is_ready": false
+     },
+     "hint": "The service may still be starting up. Please wait and try again"
+   }
 
 --------------------------------------------------------------------------------
 
@@ -34,7 +63,7 @@ ENDPOINTS
    Example:
    curl http://100.109.226.109:8000/piper/metrics
    
-   Returns Prometheus-formatted metrics for monitoring
+   Response: Prometheus-formatted text metrics
 
 --------------------------------------------------------------------------------
 
@@ -44,131 +73,301 @@ ENDPOINTS
    Example:
    curl http://100.109.226.109:8000/piper/tts/voices
    
-   Returns list of available voices for all languages
+   Success Response (200):
+   {
+     "en": [{
+       "voice_id": "en_US-lessac-high",
+       "language": "en",
+       "name": "lessac",
+       "quality": "high",
+       "sample_rate": 22050
+     }],
+     "de": [...],
+     ...
+   }
+   
+   Error Response (503):
+   {
+     "error": "service_not_initialized",
+     "message": "The TTS service is not initialized",
+     "hint": "Check /piper/health for service status"
+   }
 
 --------------------------------------------------------------------------------
 
-5. GET SUPPORTED LANGUAGES (NEW)
+5. GET SUPPORTED LANGUAGES
    GET /piper/tts/languages
    
    Example:
    curl http://100.109.226.109:8000/piper/tts/languages
    
-   Returns detailed information about all supported languages including
-   native names, regions, models, and quality levels
+   Success Response (200):
+   {
+     "en": {
+       "code": "en",
+       "name": "English",
+       "native_name": "English",
+       "region": "US",
+       "model": "en_US-lessac-high",
+       "quality": "high"
+     },
+     "fa": {
+       "code": "fa",
+       "name": "Persian",
+       "native_name": "فارسی",
+       "region": "IR",
+       "model": "fa_IR-gyro-medium",
+       "quality": "medium"
+     },
+     ...
+   }
+   
+   Error Response (503):
+   {
+     "error": "service_not_initialized",
+     "message": "The TTS service is not initialized",
+     "hint": "Check /piper/health for service status"
+   }
 
 --------------------------------------------------------------------------------
 
 6. GENERATE SPEECH (PRIMARY ENDPOINT)
    POST /piper/tts/generate
    
-   Parameters:
-   - text: string (required, 1-5000 chars)
-   - language: string (required, see supported languages below)
-   - speed: float (optional, 0.5-2.0, default: 1.0)
-   - voice: string (optional, specific voice name)
+   Request Body:
+   {
+     "text": "Hello world",      // Required: 1-5000 characters
+     "language": "en",           // Required: see supported languages
+     "speed": 1.0,               // Optional: 0.5-2.0, default 1.0
+     "voice": null               // Optional: specific voice name
+   }
    
-   Example - English:
+   Success Response (200):
+   - Content-Type: audio/mpeg
+   - Headers:
+     - X-TTS-Language: en
+     - X-TTS-Model: en_US-lessac-high
+     - X-Generation-Duration: 1.234
+   - Body: MP3 audio binary
+   
+   Examples:
+   
    curl -X POST http://100.109.226.109:8000/piper/tts/generate \
      -H "Content-Type: application/json" \
-     -d '{"text":"Hello world","language":"en","speed":1.0}' \
+     -d '{"text":"Hello world","language":"en"}' \
      --output speech.mp3
    
-   Example - German:
-   curl -X POST http://100.109.226.109:8000/piper/tts/generate \
-     -H "Content-Type: application/json" \
-     -d '{"text":"Hallo Welt","language":"de"}' \
-     --output speech.mp3
-   
-   Example - Persian:
    curl -X POST http://100.109.226.109:8000/piper/tts/generate \
      -H "Content-Type: application/json" \
      -d '{"text":"سلام دنیا","language":"fa"}' \
      --output speech.mp3
    
-   Example - French:
-   curl -X POST http://100.109.226.109:8000/piper/tts/generate \
-     -H "Content-Type: application/json" \
-     -d '{"text":"Bonjour le monde","language":"fr"}' \
-     --output speech.mp3
-   
-   Example - Spanish:
-   curl -X POST http://100.109.226.109:8000/piper/tts/generate \
-     -H "Content-Type: application/json" \
-     -d '{"text":"Hola mundo","language":"es"}' \
-     --output speech.mp3
-   
-   Example - Italian:
-   curl -X POST http://100.109.226.109:8000/piper/tts/generate \
-     -H "Content-Type: application/json" \
-     -d '{"text":"Ciao mondo","language":"it"}' \
-     --output speech.mp3
-   
-   Example - Chinese:
    curl -X POST http://100.109.226.109:8000/piper/tts/generate \
      -H "Content-Type: application/json" \
      -d '{"text":"你好世界","language":"zh"}' \
      --output speech.mp3
-   
-   Example - Arabic:
-   curl -X POST http://100.109.226.109:8000/piper/tts/generate \
-     -H "Content-Type: application/json" \
-     -d '{"text":"مرحبا بالعالم","language":"ar"}' \
-     --output speech.mp3
-   
-   Example - Russian:
-   curl -X POST http://100.109.226.109:8000/piper/tts/generate \
-     -H "Content-Type: application/json" \
-     -d '{"text":"Привет мир","language":"ru"}' \
-     --output speech.mp3
-   
-   Example - Portuguese:
-   curl -X POST http://100.109.226.109:8000/piper/tts/generate \
-     -H "Content-Type: application/json" \
-     -d '{"text":"Olá mundo","language":"pt"}' \
-     --output speech.mp3
-   
-   Example - Japanese:
-   curl -X POST http://100.109.226.109:8000/piper/tts/generate \
-     -H "Content-Type: application/json" \
-     -d '{"text":"こんにちは世界","language":"ja"}' \
-     --output speech.mp3
-   
-   Example - Swahili:
-   curl -X POST http://100.109.226.109:8000/piper/tts/generate \
-     -H "Content-Type: application/json" \
-     -d '{"text":"Habari dunia","language":"sw"}' \
-     --output speech.mp3
-   
-   Example - Turkish:
-   curl -X POST http://100.109.226.109:8000/piper/tts/generate \
-     -H "Content-Type: application/json" \
-     -d '{"text":"Merhaba dünya","language":"tr"}' \
-     --output speech.mp3
-   
-   Example - Korean:
-   curl -X POST http://100.109.226.109:8000/piper/tts/generate \
-     -H "Content-Type: application/json" \
-     -d '{"text":"안녕하세요 세계","language":"ko"}' \
-     --output speech.mp3
-   
-   Example - Vietnamese:
-   curl -X POST http://100.109.226.109:8000/piper/tts/generate \
-     -H "Content-Type: application/json" \
-     -d '{"text":"Xin chào thế giới","language":"vi"}' \
-     --output speech.mp3
-   
-   Converts text to speech and returns MP3 audio file
 
 ================================================================================
-RESPONSE CODES
+ERROR RESPONSES
 ================================================================================
 
-200 - Success
-400 - Bad Request (invalid parameters)
-403 - Forbidden (unauthorized IP)
-500 - Internal Server Error
-503 - Service Not Ready
+All error responses follow this standard format:
+
+{
+  "error": "error_code",
+  "message": "Human-readable error message",
+  "details": { ... },           // Optional: additional context
+  "hint": "Suggestion to fix"   // Optional: helpful hint
+}
+
+--------------------------------------------------------------------------------
+
+UNSUPPORTED LANGUAGE (400)
+Returned when requesting a language that is not supported.
+
+Request:
+{"text": "Hello", "language": "hi"}
+
+Response:
+{
+  "error": "unsupported_language",
+  "message": "Language 'hi' is not supported",
+  "details": {
+    "requested_language": "hi",
+    "available_languages": ["en", "de", "fr", "es", "it", "fa", "zh", "ar", "ru", "pt", "ja", "sw", "tr", "ko", "vi"],
+    "total_supported": 15
+  },
+  "hint": "Use GET /piper/tts/languages for detailed information about supported languages"
+}
+
+--------------------------------------------------------------------------------
+
+TEXT TOO SHORT (400)
+Returned when text is empty or only whitespace.
+
+Request:
+{"text": "", "language": "en"}
+
+Response:
+{
+  "error": "text_too_short",
+  "message": "Text cannot be empty",
+  "details": {
+    "min_length": 1,
+    "max_length": 5000
+  },
+  "hint": "Provide at least 1 character of text"
+}
+
+--------------------------------------------------------------------------------
+
+TEXT TOO LONG (400)
+Returned when text exceeds maximum length.
+
+Request:
+{"text": "[very long text...]", "language": "en"}
+
+Response:
+{
+  "error": "text_too_long",
+  "message": "Text exceeds maximum length of 5000 characters",
+  "details": {
+    "max_length": 5000,
+    "provided_length": 6500
+  },
+  "hint": "Reduce text to 5000 characters or less"
+}
+
+--------------------------------------------------------------------------------
+
+INVALID SPEED (400)
+Returned when speed is outside valid range.
+
+Request:
+{"text": "Hello", "language": "en", "speed": 5.0}
+
+Response:
+{
+  "error": "invalid_speed",
+  "message": "Speed value '5.0' is out of range",
+  "details": {
+    "provided_speed": 5.0,
+    "min_speed": 0.5,
+    "max_speed": 2.0,
+    "default_speed": 1.0
+  },
+  "hint": "Speed must be between 0.5 and 2.0"
+}
+
+--------------------------------------------------------------------------------
+
+FORBIDDEN (403)
+Returned when request comes from unauthorized IP.
+
+Response:
+{
+  "error": "forbidden",
+  "message": "Forbidden",
+  "hint": "This endpoint only accepts requests from authorized backend servers"
+}
+
+--------------------------------------------------------------------------------
+
+SERVICE NOT INITIALIZED (503)
+Returned when service is starting up.
+
+Response:
+{
+  "error": "service_not_initialized",
+  "message": "The TTS service is not initialized",
+  "details": {
+    "requested_language": "en",
+    "text_length": 11
+  },
+  "hint": "The service may still be starting up. Check /piper/health for status"
+}
+
+--------------------------------------------------------------------------------
+
+SERVICE NOT READY (503)
+Returned when models are not yet loaded.
+
+Response:
+{
+  "error": "service_not_ready",
+  "message": "The TTS service is not ready to accept requests",
+  "details": {
+    "service_initialized": true,
+    "models_loaded": 0,
+    "is_ready": false
+  },
+  "hint": "The service may still be starting up. Please wait and try again"
+}
+
+--------------------------------------------------------------------------------
+
+NO AUDIO GENERATED (500)
+Returned when TTS engine produces no output.
+
+Response:
+{
+  "error": "no_audio_generated",
+  "message": "The TTS engine did not produce any audio output",
+  "details": {
+    "language": "en",
+    "text_length": 50,
+    "model": "en_US-lessac-high"
+  },
+  "hint": "This may be due to unsupported characters in the text. Try simplifying the input"
+}
+
+--------------------------------------------------------------------------------
+
+GENERATION FAILED (500)
+Returned when an internal error occurs during generation.
+
+Response:
+{
+  "error": "generation_failed",
+  "message": "Speech generation failed due to an internal error",
+  "details": {
+    "language": "en",
+    "text_length": 50,
+    "generation_time": 1.234
+  },
+  "hint": "Please try again. If the problem persists, check /piper/health for service status"
+}
+
+--------------------------------------------------------------------------------
+
+VALIDATION ERROR (400)
+Generic validation error for other parameter issues.
+
+Response:
+{
+  "error": "validation_error",
+  "message": "Request validation failed",
+  "details": {
+    "errors": [
+      {
+        "field": "body.text",
+        "message": "Field required",
+        "type": "missing"
+      }
+    ]
+  },
+  "hint": "Check the request parameters and try again"
+}
+
+================================================================================
+HTTP STATUS CODES SUMMARY
+================================================================================
+
+200 - Success (audio returned or data retrieved)
+400 - Bad Request (invalid parameters: language, text, speed)
+403 - Forbidden (unauthorized IP address)
+500 - Internal Server Error (generation failed, no audio)
+503 - Service Unavailable (not initialized, not ready)
 
 ================================================================================
 SUPPORTED LANGUAGES (15 Total)
@@ -196,7 +395,7 @@ vi   | Vietnamese  | Tiếng Việt   | VN     | vi_VN-vais1000-medium    | medi
 NOT SUPPORTED LANGUAGES
 ================================================================================
 
-The following languages from your list are NOT supported by Piper TTS:
+The following languages are NOT supported by Piper TTS:
 
 - Hindi (हिन्दी)
 - Bengali (বাংলা)
@@ -209,29 +408,79 @@ The following languages from your list are NOT supported by Piper TTS:
 SECURITY
 ================================================================================
 
-Only accepts requests from: 100.116.174.15 (backend server)
-Exceptions: /piper/health and /piper/metrics allow localhost access
+- Only accepts requests from: 100.116.174.15 (backend server)
+- Exceptions: /piper/health and /piper/metrics allow localhost access
+- No JWT authentication required (IP-based filtering only)
 
 ================================================================================
 ENVIRONMENT VARIABLES
 ================================================================================
 
-Models can be overridden via environment variables:
+Server Configuration:
+  SERVER_NAME=piper
+  TAILSCALE_IP=100.109.226.109
+  PORT=8000
+  BACKEND_IP=100.116.174.15
 
-MODEL_EN=en_US-lessac-high
-MODEL_DE=de_DE-thorsten-high
-MODEL_FR=fr_FR-siwis-medium
-MODEL_ES=es_ES-carlfm-x_low
-MODEL_IT=it_IT-riccardo-x_low
-MODEL_FA=fa_IR-gyro-medium
-MODEL_ZH=zh_CN-huayan-medium
-MODEL_AR=ar_JO-kareem-medium
-MODEL_RU=ru_RU-dmitri-medium
-MODEL_PT=pt_BR-faber-medium
-MODEL_JA=ja_JP-kokoro-medium
-MODEL_SW=sw_CD-lanfrica-medium
-MODEL_TR=tr_TR-dfki-medium
-MODEL_KO=ko_KR-kss-x_low
-MODEL_VI=vi_VN-vais1000-medium
+Audio Configuration:
+  DEFAULT_SAMPLE_RATE=22050
+  MAX_TEXT_LENGTH=5000
+  OUTPUT_FORMAT=mp3
+  MP3_BITRATE=128k
+
+Model Configuration (can be overridden):
+  MODEL_EN=en_US-lessac-high
+  MODEL_DE=de_DE-thorsten-high
+  MODEL_FR=fr_FR-siwis-medium
+  MODEL_ES=es_ES-carlfm-x_low
+  MODEL_IT=it_IT-riccardo-x_low
+  MODEL_FA=fa_IR-gyro-medium
+  MODEL_ZH=zh_CN-huayan-medium
+  MODEL_AR=ar_JO-kareem-medium
+  MODEL_RU=ru_RU-dmitri-medium
+  MODEL_PT=pt_BR-faber-medium
+  MODEL_JA=ja_JP-kokoro-medium
+  MODEL_SW=sw_CD-lanfrica-medium
+  MODEL_TR=tr_TR-dfki-medium
+  MODEL_KO=ko_KR-kss-x_low
+  MODEL_VI=vi_VN-vais1000-medium
+
+Performance:
+  MAX_CONCURRENT_REQUESTS=10
+  REQUEST_TIMEOUT=30
+  WORKER_THREADS=4
+
+Monitoring:
+  LOG_LEVEL=INFO
+  LOG_FORMAT=json
+  MONITORING_ENABLED=true
+  LOG_SERVER_IP=100.122.6.31
+
+================================================================================
+PROMETHEUS METRICS
+================================================================================
+
+Available metrics at /piper/metrics:
+
+Counter Metrics:
+  piper_requests_total{method, endpoint, status}
+    Total number of HTTP requests
+
+  piper_tts_generations_total{language, status}
+    Total TTS generations (status: success, failed, invalid, error)
+
+Histogram Metrics:
+  piper_request_duration_seconds{method, endpoint}
+    HTTP request duration distribution
+
+  piper_tts_generation_duration_seconds{language}
+    TTS generation duration distribution
+
+Gauge Metrics:
+  piper_active_requests
+    Current number of active requests
+
+  piper_model_loaded{language, model_name}
+    Model load status (1=loaded, 0=not loaded)
 
 ================================================================================
