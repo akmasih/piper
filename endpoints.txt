@@ -1,6 +1,6 @@
-File: piper_endpoints.txt
-Path: /root/piper/piper_endpoints.txt
-Piper TTS Service - API Endpoints Reference
+File: endpoints.txt
+Path: /root/piper/endpoints.txt
+Piper TTS Service - API Endpoints Reference (v1.1.0)
 
 Base URL: http://100.109.226.109:8000
 
@@ -14,7 +14,7 @@ ENDPOINTS
    Example:
    curl http://100.109.226.109:8000/piper/
    
-   Returns basic service metadata and status
+   Returns basic service metadata, status, and supported languages list
 
 --------------------------------------------------------------------------------
 
@@ -24,7 +24,7 @@ ENDPOINTS
    Example:
    curl http://100.109.226.109:8000/piper/health
    
-   Returns service health status and loaded models count
+   Returns service health status, version, and loaded models count
 
 --------------------------------------------------------------------------------
 
@@ -48,12 +48,23 @@ ENDPOINTS
 
 --------------------------------------------------------------------------------
 
-5. GENERATE SPEECH (PRIMARY ENDPOINT)
+5. GET SUPPORTED LANGUAGES (NEW)
+   GET /piper/tts/languages
+   
+   Example:
+   curl http://100.109.226.109:8000/piper/tts/languages
+   
+   Returns detailed information about all supported languages including
+   native names, regions, models, and quality levels
+
+--------------------------------------------------------------------------------
+
+6. GENERATE SPEECH (PRIMARY ENDPOINT)
    POST /piper/tts/generate
    
    Parameters:
    - text: string (required, 1-5000 chars)
-   - language: string (required, en|de|fr|es|it|fa)
+   - language: string (required, see supported languages below)
    - speed: float (optional, 0.5-2.0, default: 1.0)
    - voice: string (optional, specific voice name)
    
@@ -93,6 +104,60 @@ ENDPOINTS
      -d '{"text":"Ciao mondo","language":"it"}' \
      --output speech.mp3
    
+   Example - Chinese:
+   curl -X POST http://100.109.226.109:8000/piper/tts/generate \
+     -H "Content-Type: application/json" \
+     -d '{"text":"你好世界","language":"zh"}' \
+     --output speech.mp3
+   
+   Example - Arabic:
+   curl -X POST http://100.109.226.109:8000/piper/tts/generate \
+     -H "Content-Type: application/json" \
+     -d '{"text":"مرحبا بالعالم","language":"ar"}' \
+     --output speech.mp3
+   
+   Example - Russian:
+   curl -X POST http://100.109.226.109:8000/piper/tts/generate \
+     -H "Content-Type: application/json" \
+     -d '{"text":"Привет мир","language":"ru"}' \
+     --output speech.mp3
+   
+   Example - Portuguese:
+   curl -X POST http://100.109.226.109:8000/piper/tts/generate \
+     -H "Content-Type: application/json" \
+     -d '{"text":"Olá mundo","language":"pt"}' \
+     --output speech.mp3
+   
+   Example - Japanese:
+   curl -X POST http://100.109.226.109:8000/piper/tts/generate \
+     -H "Content-Type: application/json" \
+     -d '{"text":"こんにちは世界","language":"ja"}' \
+     --output speech.mp3
+   
+   Example - Swahili:
+   curl -X POST http://100.109.226.109:8000/piper/tts/generate \
+     -H "Content-Type: application/json" \
+     -d '{"text":"Habari dunia","language":"sw"}' \
+     --output speech.mp3
+   
+   Example - Turkish:
+   curl -X POST http://100.109.226.109:8000/piper/tts/generate \
+     -H "Content-Type: application/json" \
+     -d '{"text":"Merhaba dünya","language":"tr"}' \
+     --output speech.mp3
+   
+   Example - Korean:
+   curl -X POST http://100.109.226.109:8000/piper/tts/generate \
+     -H "Content-Type: application/json" \
+     -d '{"text":"안녕하세요 세계","language":"ko"}' \
+     --output speech.mp3
+   
+   Example - Vietnamese:
+   curl -X POST http://100.109.226.109:8000/piper/tts/generate \
+     -H "Content-Type: application/json" \
+     -d '{"text":"Xin chào thế giới","language":"vi"}' \
+     --output speech.mp3
+   
    Converts text to speech and returns MP3 audio file
 
 ================================================================================
@@ -106,15 +171,39 @@ RESPONSE CODES
 503 - Service Not Ready
 
 ================================================================================
-SUPPORTED LANGUAGES
+SUPPORTED LANGUAGES (15 Total)
 ================================================================================
 
-en - English (US)
-de - German
-fr - French
-es - Spanish
-it - Italian
-fa - Persian (Farsi)
+Code | Language    | Native Name  | Region | Model                    | Quality
+-----|-------------|--------------|--------|--------------------------|--------
+en   | English     | English      | US     | en_US-lessac-high        | high
+de   | German      | Deutsch      | DE     | de_DE-thorsten-high      | high
+fr   | French      | Français     | FR     | fr_FR-siwis-medium       | medium
+es   | Spanish     | Español      | ES     | es_ES-carlfm-x_low       | x-low
+it   | Italian     | Italiano     | IT     | it_IT-riccardo-x_low     | x-low
+fa   | Persian     | فارسی        | IR     | fa_IR-gyro-medium        | medium
+zh   | Chinese     | 中文          | CN     | zh_CN-huayan-medium      | medium
+ar   | Arabic      | العربية      | JO     | ar_JO-kareem-medium      | medium
+ru   | Russian     | Русский      | RU     | ru_RU-dmitri-medium      | medium
+pt   | Portuguese  | Português    | BR     | pt_BR-faber-medium       | medium
+ja   | Japanese    | 日本語        | JP     | ja_JP-kokoro-medium      | medium
+sw   | Swahili     | Kiswahili    | CD     | sw_CD-lanfrica-medium    | medium
+tr   | Turkish     | Türkçe       | TR     | tr_TR-dfki-medium        | medium
+ko   | Korean      | 한국어        | KR     | ko_KR-kss-x_low          | x-low
+vi   | Vietnamese  | Tiếng Việt   | VN     | vi_VN-vais1000-medium    | medium
+
+================================================================================
+NOT SUPPORTED LANGUAGES
+================================================================================
+
+The following languages from your list are NOT supported by Piper TTS:
+
+- Hindi (हिन्दी)
+- Bengali (বাংলা)
+- Urdu (اردو)
+- Indonesian (Bahasa Indonesia)
+- Punjabi (ਪੰਜਾਬੀ)
+- Javanese (Basa Jawa)
 
 ================================================================================
 SECURITY
@@ -122,5 +211,27 @@ SECURITY
 
 Only accepts requests from: 100.116.174.15 (backend server)
 Exceptions: /piper/health and /piper/metrics allow localhost access
+
+================================================================================
+ENVIRONMENT VARIABLES
+================================================================================
+
+Models can be overridden via environment variables:
+
+MODEL_EN=en_US-lessac-high
+MODEL_DE=de_DE-thorsten-high
+MODEL_FR=fr_FR-siwis-medium
+MODEL_ES=es_ES-carlfm-x_low
+MODEL_IT=it_IT-riccardo-x_low
+MODEL_FA=fa_IR-gyro-medium
+MODEL_ZH=zh_CN-huayan-medium
+MODEL_AR=ar_JO-kareem-medium
+MODEL_RU=ru_RU-dmitri-medium
+MODEL_PT=pt_BR-faber-medium
+MODEL_JA=ja_JP-kokoro-medium
+MODEL_SW=sw_CD-lanfrica-medium
+MODEL_TR=tr_TR-dfki-medium
+MODEL_KO=ko_KR-kss-x_low
+MODEL_VI=vi_VN-vais1000-medium
 
 ================================================================================

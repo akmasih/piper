@@ -24,13 +24,24 @@ class Settings:
         # Model Configuration
         self.MODEL_QUALITY_PREFERENCE = os.getenv("MODEL_QUALITY_PREFERENCE", "high,medium,low,x-low").split(',')
         
-        # Language Model Mappings
+        # Language Model Mappings - Original Languages
         self.MODEL_EN = os.getenv("MODEL_EN", "en_US-lessac-high")
         self.MODEL_DE = os.getenv("MODEL_DE", "de_DE-thorsten-high")
         self.MODEL_FR = os.getenv("MODEL_FR", "fr_FR-siwis-medium")
         self.MODEL_ES = os.getenv("MODEL_ES", "es_ES-carlfm-x_low")
         self.MODEL_IT = os.getenv("MODEL_IT", "it_IT-riccardo-x_low")
         self.MODEL_FA = os.getenv("MODEL_FA", "fa_IR-gyro-medium")
+        
+        # Language Model Mappings - Extended Languages
+        self.MODEL_ZH = os.getenv("MODEL_ZH", "zh_CN-huayan-medium")
+        self.MODEL_AR = os.getenv("MODEL_AR", "ar_JO-kareem-medium")
+        self.MODEL_RU = os.getenv("MODEL_RU", "ru_RU-dmitri-medium")
+        self.MODEL_PT = os.getenv("MODEL_PT", "pt_BR-faber-medium")
+        self.MODEL_JA = os.getenv("MODEL_JA", "ja_JP-kokoro-medium")
+        self.MODEL_SW = os.getenv("MODEL_SW", "sw_CD-lanfrica-medium")
+        self.MODEL_TR = os.getenv("MODEL_TR", "tr_TR-dfki-medium")
+        self.MODEL_KO = os.getenv("MODEL_KO", "ko_KR-kss-x_low")
+        self.MODEL_VI = os.getenv("MODEL_VI", "vi_VN-vais1000-medium")
         
         # Performance Settings
         self.MAX_CONCURRENT_REQUESTS = int(os.getenv("MAX_CONCURRENT_REQUESTS", "10"))
@@ -53,24 +64,41 @@ class Settings:
         # Rate Limiting (requests per minute from backend)
         self.RATE_LIMIT_ENABLED = os.getenv("RATE_LIMIT_ENABLED", "false").lower() == "true"
         self.RATE_LIMIT_PER_MINUTE = int(os.getenv("RATE_LIMIT_PER_MINUTE", "100"))
+        
+        # Supported languages list for validation
+        self.SUPPORTED_LANGUAGES = [
+            'en', 'de', 'fr', 'es', 'it', 'fa',  # Original
+            'zh', 'ar', 'ru', 'pt', 'ja', 'sw', 'tr', 'ko', 'vi'  # Extended
+        ]
     
     def get_model_for_language(self, language: str) -> Optional[str]:
         """
         Get model name for a specific language
         
         Args:
-            language: Language code (en, de, fr, es, it, fa)
+            language: Language code (en, de, fr, es, it, fa, zh, ar, ru, pt, ja, sw, tr, ko, vi)
             
         Returns:
             Model name or None if language not supported
         """
         model_mapping = {
+            # Original languages
             'en': self.MODEL_EN,
             'de': self.MODEL_DE,
             'fr': self.MODEL_FR,
             'es': self.MODEL_ES,
             'it': self.MODEL_IT,
-            'fa': self.MODEL_FA
+            'fa': self.MODEL_FA,
+            # Extended languages
+            'zh': self.MODEL_ZH,
+            'ar': self.MODEL_AR,
+            'ru': self.MODEL_RU,
+            'pt': self.MODEL_PT,
+            'ja': self.MODEL_JA,
+            'sw': self.MODEL_SW,
+            'tr': self.MODEL_TR,
+            'ko': self.MODEL_KO,
+            'vi': self.MODEL_VI
         }
         return model_mapping.get(language)
     
@@ -93,8 +121,8 @@ class Settings:
         if not self.LOG_SERVER_IP and self.MONITORING_ENABLED:
             errors.append("LOG_SERVER_IP is required when monitoring is enabled")
         
-        # Validate model configurations
-        for lang in ['en', 'de', 'fr', 'es', 'it', 'fa']:
+        # Validate model configurations for all supported languages
+        for lang in self.SUPPORTED_LANGUAGES:
             model = self.get_model_for_language(lang)
             if not model:
                 errors.append(f"Model for language {lang} is not configured")
@@ -151,6 +179,31 @@ class Settings:
             'port': self.PORT,
             'backend_ip': self.BACKEND_IP,
             'service': 'piper-tts'
+        }
+    
+    def get_language_info(self) -> dict:
+        """
+        Get language information with human-readable names
+        
+        Returns:
+            Dictionary mapping language codes to info
+        """
+        return {
+            'en': {'name': 'English', 'native': 'English', 'region': 'US'},
+            'de': {'name': 'German', 'native': 'Deutsch', 'region': 'DE'},
+            'fr': {'name': 'French', 'native': 'Français', 'region': 'FR'},
+            'es': {'name': 'Spanish', 'native': 'Español', 'region': 'ES'},
+            'it': {'name': 'Italian', 'native': 'Italiano', 'region': 'IT'},
+            'fa': {'name': 'Persian', 'native': 'فارسی', 'region': 'IR'},
+            'zh': {'name': 'Chinese', 'native': '中文', 'region': 'CN'},
+            'ar': {'name': 'Arabic', 'native': 'العربية', 'region': 'JO'},
+            'ru': {'name': 'Russian', 'native': 'Русский', 'region': 'RU'},
+            'pt': {'name': 'Portuguese', 'native': 'Português', 'region': 'BR'},
+            'ja': {'name': 'Japanese', 'native': '日本語', 'region': 'JP'},
+            'sw': {'name': 'Swahili', 'native': 'Kiswahili', 'region': 'CD'},
+            'tr': {'name': 'Turkish', 'native': 'Türkçe', 'region': 'TR'},
+            'ko': {'name': 'Korean', 'native': '한국어', 'region': 'KR'},
+            'vi': {'name': 'Vietnamese', 'native': 'Tiếng Việt', 'region': 'VN'}
         }
 
 # Global settings instance

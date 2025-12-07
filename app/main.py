@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, validator
 from pythonjsonlogger import jsonlogger
-from prometheus_client import Counter, Histogram, Gauge, make_asgi_app
+from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
 import uvicorn
 
 from app.config import settings
@@ -90,7 +90,7 @@ async def lifespan(app: FastAPI):
     try:
         logger.info("Initializing Piper TTS service", extra={
             'event': 'service_startup',
-            'version': '1.0.0'
+            'version': '1.1.0'
         })
         
         tts_service = PiperTTSService()
@@ -105,6 +105,10 @@ async def lifespan(app: FastAPI):
             'models_loaded': len(tts_service.loaded_models),
             'languages': list(tts_service.loaded_models.keys())
         })
+        
+        # Store start time for uptime calculation
+        app.state.start_time = time.time()
+        
         yield
     except Exception as e:
         logger.error("Failed to initialize service", extra={
@@ -122,8 +126,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Piper TTS Service",
-    description="Text-to-Speech service using Piper for Lingudesk system",
-    version="1.0.0",
+    description="Text-to-Speech service using Piper for Lingudesk system - Supports 15 languages",
+    version="1.1.0",
     lifespan=lifespan
 )
 
@@ -135,10 +139,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Language pattern for validation - 15 supported languages
+LANGUAGE_PATTERN = "^(en|de|fr|es|it|fa|zh|ar|ru|pt|ja|sw|tr|ko|vi)$"
+
 class TTSRequest(BaseModel):
     """Request model for TTS generation"""
     text: str = Field(..., min_length=1, max_length=5000)
-    language: str = Field(..., pattern="^(en|de|fr|es|it|fa)$")
+    language: str = Field(..., pattern=LANGUAGE_PATTERN)
     voice: str = Field(None, description="Optional specific voice name")
     speed: float = Field(1.0, ge=0.5, le=2.0, description="Speech speed multiplier")
     
@@ -158,10 +165,20 @@ class VoiceInfo(BaseModel):
     quality: str
     sample_rate: int
 
+class LanguageInfo(BaseModel):
+    """Model for language information"""
+    code: str
+    name: str
+    native_name: str
+    region: str
+    model: str
+    quality: str
+
 class HealthResponse(BaseModel):
     """Model for health check response"""
     status: str
     service: str
+    version: str
     models_loaded: int
     available_languages: list
     uptime_seconds: float = None
@@ -257,6 +274,7 @@ async def health_check():
     return HealthResponse(
         status="healthy",
         service="piper-tts",
+        version="1.1.0",
         models_loaded=len(tts_service.loaded_models),
         available_languages=tts_service.get_available_languages(),
         uptime_seconds=round(uptime, 2)
@@ -269,8 +287,8 @@ async def metrics():
     Returns metrics in Prometheus format
     """
     return Response(
-        content=make_asgi_app()({"REQUEST_METHOD": "GET", "PATH_INFO": "/"}),
-        media_type="text/plain"
+        content=generate_latest(),
+        media_type=CONTENT_TYPE_LATEST
     )
 
 @app.get("/piper/tts/voices", response_model=Dict[str, list[VoiceInfo]])
@@ -299,6 +317,47 @@ async def get_voices():
             'error_type': type(e).__name__
         }, exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to retrieve voices")
+
+@app.get("/piper/tts/languages", response_model=Dict[str, LanguageInfo])
+async def get_languages():
+    """
+    Get information about all supported languages
+    Returns dictionary with language details
+    """
+    if not tts_service:
+        logger.error("Languages request failed - service not initialized", extra={
+            'event': 'languages_request_failed'
+        })
+        raise HTTPException(status_code=503, detail="Service not initialized")
+    
+    try:
+        language_info = settings.get_language_info()
+        result = {}
+        
+        for code, info in language_info.items():
+            if code in tts_service.loaded_models:
+                model_name = tts_service.loaded_models[code]
+                result[code] = LanguageInfo(
+                    code=code,
+                    name=info['name'],
+                    native_name=info['native'],
+                    region=info['region'],
+                    model=model_name,
+                    quality=tts_service._extract_quality(model_name)
+                )
+        
+        logger.debug("Languages list retrieved", extra={
+            'event': 'languages_retrieved',
+            'languages_count': len(result)
+        })
+        return result
+    except Exception as e:
+        logger.error("Error getting languages", extra={
+            'event': 'languages_error',
+            'error': str(e),
+            'error_type': type(e).__name__
+        }, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve languages")
 
 @app.post("/piper/tts/generate")
 async def generate_speech(request: TTSRequest):
@@ -395,14 +454,15 @@ async def root():
     """
     return {
         "service": "Piper TTS",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "status": "running",
         "server": settings.SERVER_NAME,
-        "prefix": "/piper/"
+        "prefix": "/piper/",
+        "supported_languages": settings.SUPPORTED_LANGUAGES,
+        "total_languages": len(settings.SUPPORTED_LANGUAGES)
     }
 
 if __name__ == "__main__":
-    app.state.start_time = time.time()
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",

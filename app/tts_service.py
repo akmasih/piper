@@ -35,21 +35,33 @@ class PiperTTSService:
         self.executor = ThreadPoolExecutor(max_workers=settings.WORKER_THREADS)
         self._ready = False
         
-        # Language to model name mapping from settings
+        # Language to model name mapping from settings - All 15 supported languages
         self.language_models = {
+            # Original languages
             'en': settings.MODEL_EN,
             'de': settings.MODEL_DE,
             'fr': settings.MODEL_FR,
             'es': settings.MODEL_ES,
             'it': settings.MODEL_IT,
-            'fa': settings.MODEL_FA
+            'fa': settings.MODEL_FA,
+            # Extended languages
+            'zh': settings.MODEL_ZH,
+            'ar': settings.MODEL_AR,
+            'ru': settings.MODEL_RU,
+            'pt': settings.MODEL_PT,
+            'ja': settings.MODEL_JA,
+            'sw': settings.MODEL_SW,
+            'tr': settings.MODEL_TR,
+            'ko': settings.MODEL_KO,
+            'vi': settings.MODEL_VI
         }
         
         logger.info("TTS service instance created", extra={
             'event': 'service_init',
             'models_dir': str(self.models_dir),
             'temp_dir': str(self.temp_dir),
-            'worker_threads': settings.WORKER_THREADS
+            'worker_threads': settings.WORKER_THREADS,
+            'supported_languages': len(self.language_models)
         })
         
     async def initialize(self):
@@ -60,7 +72,8 @@ class PiperTTSService:
         try:
             logger.info("Starting TTS service initialization", extra={
                 'event': 'initialization_start',
-                'languages': list(self.language_models.keys())
+                'languages': list(self.language_models.keys()),
+                'total_languages': len(self.language_models)
             })
             
             # Create required directories
@@ -75,8 +88,21 @@ class PiperTTSService:
             
             # Prepare all language models
             initialization_start = time.time()
+            successful_models = 0
+            failed_models = []
+            
             for lang, model_name in self.language_models.items():
-                await self._prepare_model(lang, model_name)
+                try:
+                    await self._prepare_model(lang, model_name)
+                    successful_models += 1
+                except Exception as e:
+                    failed_models.append({'language': lang, 'error': str(e)})
+                    logger.warning(f"Failed to prepare model for {lang}", extra={
+                        'event': 'model_preparation_warning',
+                        'language': lang,
+                        'model_name': model_name,
+                        'error': str(e)
+                    })
             
             initialization_duration = time.time() - initialization_start
             
@@ -84,9 +110,17 @@ class PiperTTSService:
             logger.info("TTS service initialization completed", extra={
                 'event': 'initialization_complete',
                 'models_loaded': len(self.loaded_models),
+                'successful_models': successful_models,
+                'failed_models': len(failed_models),
                 'languages': list(self.loaded_models.keys()),
                 'duration': round(initialization_duration, 2)
             })
+            
+            if failed_models:
+                logger.warning("Some models failed to load", extra={
+                    'event': 'partial_initialization',
+                    'failed_models': failed_models
+                })
             
         except Exception as e:
             logger.error("Failed to initialize TTS service", extra={
@@ -102,7 +136,7 @@ class PiperTTSService:
         Downloads model if not present and loads configuration
         
         Args:
-            language: Language code (en, de, fr, es, it, fa)
+            language: Language code (en, de, fr, es, it, fa, zh, ar, ru, pt, ja, sw, tr, ko, vi)
             model_name: Name of the Piper voice model
         """
         try:
@@ -167,6 +201,7 @@ class PiperTTSService:
                 'error': str(e),
                 'error_type': type(e).__name__
             }, exc_info=True)
+            raise
     
     async def _download_model(self, model_name: str, output_dir: Path):
         """
@@ -614,11 +649,13 @@ class PiperTTSService:
             self.model_configs.clear()
             
             # Clean temporary directory
+            temp_files_cleaned = 0
             if self.temp_dir.exists():
                 temp_files = list(self.temp_dir.glob("*"))
                 for file in temp_files:
                     try:
                         file.unlink()
+                        temp_files_cleaned += 1
                     except Exception as e:
                         logger.warning("Failed to delete temp file", extra={
                             'event': 'temp_file_delete_failed',
@@ -629,7 +666,7 @@ class PiperTTSService:
             logger.info("Service cleanup completed", extra={
                 'event': 'cleanup_complete',
                 'models_cleared': models_count,
-                'temp_files_cleaned': len(temp_files) if 'temp_files' in locals() else 0
+                'temp_files_cleaned': temp_files_cleaned
             })
             
         except Exception as e:
