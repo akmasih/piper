@@ -1,12 +1,12 @@
-version: '3.8'
+# File: docker-compose.yml - /root/piper/docker-compose.yml
+# Docker Compose configuration for Piper TTS service with host network
 
 services:
   piper-tts:
     build: .
     container_name: piper-tts
     restart: unless-stopped
-    ports:
-      - "100.109.226.109:8000:8000"
+    network_mode: "host"
     volumes:
       - ./models:/app/models:ro
       - ./app:/app/app:ro
@@ -16,8 +16,6 @@ services:
       - TZ=UTC
     env_file:
       - .env
-    networks:
-      - piper-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/piper/health"]
       interval: 30s
@@ -33,7 +31,3 @@ services:
       nofile:
         soft: 65536
         hard: 65536
-
-networks:
-  piper-network:
-    driver: bridge
