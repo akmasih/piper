@@ -1,5 +1,7 @@
-# File: app/tts_service.py - /root/piper/app/tts_service.py
+# tts_service.py
+# /root/piper/app/tts_service.py
 # Core TTS service implementation using Piper with structured logging
+# FIXED: MP3 encoding with padding silence for Firefox/WMF compatibility
 
 import asyncio
 import io
@@ -13,12 +15,10 @@ from pathlib import Path
 from typing import Dict, Optional, Any, BinaryIO
 from concurrent.futures import ThreadPoolExecutor
 
-from pydub import AudioSegment
-import numpy as np
-
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
 
 class PiperTTSService:
     """
@@ -63,6 +63,32 @@ class PiperTTSService:
             'worker_threads': settings.WORKER_THREADS,
             'supported_languages': len(self.language_models)
         })
+        
+        # Verify ffmpeg is available
+        self._verify_ffmpeg()
+    
+    def _verify_ffmpeg(self):
+        """Verify that ffmpeg is available in the system"""
+        try:
+            result = subprocess.run(
+                ['ffmpeg', '-version'],
+                capture_output=True,
+                timeout=10
+            )
+            if result.returncode == 0:
+                logger.info("ffmpeg verified", extra={
+                    'event': 'ffmpeg_verified'
+                })
+            else:
+                logger.warning("ffmpeg check returned non-zero", extra={
+                    'event': 'ffmpeg_warning',
+                    'returncode': result.returncode
+                })
+        except Exception as e:
+            logger.error("ffmpeg not available", extra={
+                'event': 'ffmpeg_missing',
+                'error': str(e)
+            })
         
     async def initialize(self):
         """
@@ -408,7 +434,7 @@ class PiperTTSService:
         try:
             # Generate speech using Piper
             piper_start = time.time()
-            audio_data = await self._run_piper(
+            wav_data = await self._run_piper(
                 text=text,
                 model_path=model_path,
                 config_path=config_path,
@@ -420,12 +446,12 @@ class PiperTTSService:
                 'event': 'piper_generation_complete',
                 'language': language,
                 'duration': round(piper_duration, 3),
-                'audio_size': len(audio_data)
+                'wav_size': len(wav_data)
             })
             
-            # Convert to MP3 format
+            # Convert to MP3 format with proper encoding for Firefox/WMF compatibility
             mp3_start = time.time()
-            mp3_data = await self._convert_to_mp3(audio_data)
+            mp3_data = await self._convert_to_mp3_ffmpeg(wav_data)
             mp3_duration = time.time() - mp3_start
             
             total_duration = time.time() - generation_start
@@ -434,7 +460,8 @@ class PiperTTSService:
                 'event': 'speech_generation_complete',
                 'language': language,
                 'text_length': len(text),
-                'audio_size': len(mp3_data),
+                'wav_size': len(wav_data),
+                'mp3_size': len(mp3_data),
                 'piper_duration': round(piper_duration, 3),
                 'mp3_duration': round(mp3_duration, 3),
                 'total_duration': round(total_duration, 3)
@@ -578,9 +605,15 @@ class PiperTTSService:
         
         return await loop.run_in_executor(self.executor, run_tts)
     
-    async def _convert_to_mp3(self, wav_data: bytes) -> bytes:
+    async def _convert_to_mp3_ffmpeg(self, wav_data: bytes) -> bytes:
         """
-        Convert WAV audio data to MP3 format
+        Convert WAV audio data to MP3 format using ffmpeg directly
+        
+        FIXED: Uses proper encoding for Firefox/Windows Media Foundation compatibility:
+        - 24kHz mono 48kbps (like working online TTS)
+        - No Xing/Info header
+        - No ID3 tags
+        - 0.5 second silence padding at end (critical for Firefox/WMF)
         
         Args:
             wav_data: WAV audio data as bytes
@@ -594,36 +627,87 @@ class PiperTTSService:
         loop = asyncio.get_event_loop()
         
         def convert():
+            wav_file_path = None
+            mp3_file_path = None
+            
             try:
-                logger.debug("Starting MP3 conversion", extra={
+                logger.debug("Starting MP3 conversion with ffmpeg", extra={
                     'event': 'mp3_conversion_start',
-                    'wav_size': len(wav_data),
-                    'bitrate': settings.MP3_BITRATE
+                    'wav_size': len(wav_data)
                 })
                 
-                # Load WAV data
-                audio = AudioSegment.from_wav(io.BytesIO(wav_data))
+                # Create temporary WAV file
+                with tempfile.NamedTemporaryFile(
+                    suffix='.wav',
+                    dir=str(self.temp_dir),
+                    delete=False
+                ) as wav_file:
+                    wav_file.write(wav_data)
+                    wav_file_path = wav_file.name
                 
-                # Export as MP3
-                mp3_buffer = io.BytesIO()
-                audio.export(
-                    mp3_buffer,
-                    format='mp3',
-                    bitrate=settings.MP3_BITRATE,
-                    parameters=["-q:a", "2"]
+                # Create temporary MP3 file
+                with tempfile.NamedTemporaryFile(
+                    suffix='.mp3',
+                    dir=str(self.temp_dir),
+                    delete=False
+                ) as mp3_file:
+                    mp3_file_path = mp3_file.name
+                
+                # Build ffmpeg command for Firefox/WMF compatible MP3
+                # CRITICAL: apad adds 0.5s silence at end for Firefox compatibility
+                cmd = [
+                    'ffmpeg', '-y',
+                    '-i', wav_file_path,
+                    '-af', 'apad=pad_dur=0.5',      # Add 0.5s silence padding at end
+                    '-ar', '24000',                  # 24kHz sample rate
+                    '-ac', '1',                      # Mono
+                    '-c:a', 'libmp3lame',            # MP3 encoder
+                    '-b:a', '48k',                   # 48kbps bitrate
+                    '-write_xing', '0',              # No Xing/Info header
+                    '-id3v2_version', '0',           # No ID3 tags
+                    '-map_metadata', '-1',           # Remove all metadata
+                    '-fflags', '+bitexact',          # Bit-exact output
+                    mp3_file_path
+                ]
+                
+                logger.debug("Executing ffmpeg command", extra={
+                    'event': 'ffmpeg_command_exec',
+                    'command': ' '.join(cmd)
+                })
+                
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    timeout=30
                 )
                 
-                mp3_buffer.seek(0)
-                mp3_data = mp3_buffer.read()
+                if result.returncode != 0:
+                    error_msg = result.stderr.decode()
+                    logger.error("ffmpeg conversion failed", extra={
+                        'event': 'ffmpeg_conversion_failed',
+                        'return_code': result.returncode,
+                        'error': error_msg
+                    })
+                    raise Exception(f"ffmpeg failed: {error_msg}")
+                
+                # Read generated MP3 file
+                with open(mp3_file_path, 'rb') as f:
+                    mp3_data = f.read()
                 
                 logger.debug("MP3 conversion completed", extra={
                     'event': 'mp3_conversion_complete',
                     'mp3_size': len(mp3_data),
-                    'compression_ratio': round(len(wav_data) / len(mp3_data), 2)
+                    'compression_ratio': round(len(wav_data) / len(mp3_data), 2) if mp3_data else 0
                 })
                 
                 return mp3_data
                 
+            except subprocess.TimeoutExpired:
+                logger.error("ffmpeg conversion timeout", extra={
+                    'event': 'ffmpeg_timeout',
+                    'timeout': 30
+                })
+                raise Exception("MP3 conversion timeout")
             except Exception as e:
                 logger.error("MP3 conversion error", extra={
                     'event': 'mp3_conversion_error',
@@ -631,6 +715,19 @@ class PiperTTSService:
                     'error_type': type(e).__name__
                 }, exc_info=True)
                 raise Exception(f"MP3 conversion failed: {e}")
+            finally:
+                # Clean up temporary files
+                for path in [wav_file_path, mp3_file_path]:
+                    if path:
+                        try:
+                            if os.path.exists(path):
+                                os.unlink(path)
+                        except Exception as e:
+                            logger.warning("Failed to cleanup temp file", extra={
+                                'event': 'temp_file_cleanup_failed',
+                                'file': path,
+                                'error': str(e)
+                            })
         
         return await loop.run_in_executor(self.executor, convert)
     
