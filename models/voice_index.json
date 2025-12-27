@@ -1,0 +1,2141 @@
+{
+  "languages": {
+    "ar": {
+      "locales": {
+        "JO": {
+          "voices": {
+            "kareem": {
+              "gender": "male",
+              "display_name": "Kareem",
+              "description": "",
+              "qualities": {
+                "low": {
+                  "model": "ar_JO-kareem-low.onnx",
+                  "config": "ar_JO-kareem-low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                },
+                "medium": {
+                  "model": "ar_JO-kareem-medium.onnx",
+                  "config": "ar_JO-kareem-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "bg": {
+      "locales": {
+        "BG": {
+          "voices": {
+            "dimitar": {
+              "gender": "male",
+              "display_name": "Dimitar",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "bg_BG-dimitar-medium.onnx",
+                  "config": "bg_BG-dimitar-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "ca": {
+      "locales": {
+        "ES": {
+          "voices": {
+            "upc_ona": {
+              "gender": "female",
+              "display_name": "Upc Ona",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "ca_ES-upc_ona-medium.onnx",
+                  "config": "ca_ES-upc_ona-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                },
+                "x_low": {
+                  "model": "ca_ES-upc_ona-x_low.onnx",
+                  "config": "ca_ES-upc_ona-x_low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "upc_pau": {
+              "gender": "neutral",
+              "display_name": "Upc Pau",
+              "description": "",
+              "qualities": {
+                "x_low": {
+                  "model": "ca_ES-upc_pau-x_low.onnx",
+                  "config": "ca_ES-upc_pau-x_low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "cs": {
+      "locales": {
+        "CZ": {
+          "voices": {
+            "jirka": {
+              "gender": "male",
+              "display_name": "Jirka",
+              "description": "",
+              "qualities": {
+                "low": {
+                  "model": "cs_CZ-jirka-low.onnx",
+                  "config": "cs_CZ-jirka-low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                },
+                "medium": {
+                  "model": "cs_CZ-jirka-medium.onnx",
+                  "config": "cs_CZ-jirka-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "cy": {
+      "locales": {
+        "GB": {
+          "voices": {
+            "bu_tts": {
+              "gender": "neutral",
+              "display_name": "Bu Tts",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "cy_GB-bu_tts-medium.onnx",
+                  "config": "cy_GB-bu_tts-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 7
+                }
+              }
+            },
+            "gwryw_gogleddol": {
+              "gender": "neutral",
+              "display_name": "Gwryw Gogleddol",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "cy_GB-gwryw_gogleddol-medium.onnx",
+                  "config": "cy_GB-gwryw_gogleddol-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "da": {
+      "locales": {
+        "DK": {
+          "voices": {
+            "talesyntese": {
+              "gender": "neutral",
+              "display_name": "Talesyntese",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "da_DK-talesyntese-medium.onnx",
+                  "config": "da_DK-talesyntese-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "de": {
+      "locales": {
+        "DE": {
+          "voices": {
+            "eva_k": {
+              "gender": "female",
+              "display_name": "Eva K",
+              "description": "",
+              "qualities": {
+                "x_low": {
+                  "model": "de_DE-eva_k-x_low.onnx",
+                  "config": "de_DE-eva_k-x_low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "karlsson": {
+              "gender": "neutral",
+              "display_name": "Karlsson",
+              "description": "",
+              "qualities": {
+                "low": {
+                  "model": "de_DE-karlsson-low.onnx",
+                  "config": "de_DE-karlsson-low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "kerstin": {
+              "gender": "female",
+              "display_name": "Kerstin",
+              "description": "",
+              "qualities": {
+                "low": {
+                  "model": "de_DE-kerstin-low.onnx",
+                  "config": "de_DE-kerstin-low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "mls": {
+              "gender": "neutral",
+              "display_name": "Mls",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "de_DE-mls-medium.onnx",
+                  "config": "de_DE-mls-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 236
+                }
+              }
+            },
+            "pavoque": {
+              "gender": "neutral",
+              "display_name": "Pavoque",
+              "description": "",
+              "qualities": {
+                "low": {
+                  "model": "de_DE-pavoque-low.onnx",
+                  "config": "de_DE-pavoque-low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "ramona": {
+              "gender": "female",
+              "display_name": "Ramona",
+              "description": "",
+              "qualities": {
+                "low": {
+                  "model": "de_DE-ramona-low.onnx",
+                  "config": "de_DE-ramona-low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "thorsten_emotional": {
+              "gender": "female",
+              "display_name": "Thorsten Emotional",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "de_DE-thorsten_emotional-medium.onnx",
+                  "config": "de_DE-thorsten_emotional-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 8
+                }
+              }
+            },
+            "thorsten": {
+              "gender": "male",
+              "display_name": "Thorsten",
+              "description": "",
+              "qualities": {
+                "high": {
+                  "model": "de_DE-thorsten-high.onnx",
+                  "config": "de_DE-thorsten-high.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                },
+                "low": {
+                  "model": "de_DE-thorsten-low.onnx",
+                  "config": "de_DE-thorsten-low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                },
+                "medium": {
+                  "model": "de_DE-thorsten-medium.onnx",
+                  "config": "de_DE-thorsten-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "el": {
+      "locales": {
+        "GR": {
+          "voices": {
+            "rapunzelina": {
+              "gender": "female",
+              "display_name": "Rapunzelina",
+              "description": "",
+              "qualities": {
+                "low": {
+                  "model": "el_GR-rapunzelina-low.onnx",
+                  "config": "el_GR-rapunzelina-low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                },
+                "medium": {
+                  "model": "el_GR-rapunzelina-medium.onnx",
+                  "config": "el_GR-rapunzelina-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "en": {
+      "locales": {
+        "GB": {
+          "voices": {
+            "alan": {
+              "gender": "male",
+              "display_name": "Alan",
+              "description": "",
+              "qualities": {
+                "low": {
+                  "model": "en_GB-alan-low.onnx",
+                  "config": "en_GB-alan-low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                },
+                "medium": {
+                  "model": "en_GB-alan-medium.onnx",
+                  "config": "en_GB-alan-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "alba": {
+              "gender": "female",
+              "display_name": "Alba",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "en_GB-alba-medium.onnx",
+                  "config": "en_GB-alba-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "aru": {
+              "gender": "male",
+              "display_name": "Aru",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "en_GB-aru-medium.onnx",
+                  "config": "en_GB-aru-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 12
+                }
+              }
+            },
+            "cori": {
+              "gender": "female",
+              "display_name": "Cori",
+              "description": "",
+              "qualities": {
+                "high": {
+                  "model": "en_GB-cori-high.onnx",
+                  "config": "en_GB-cori-high.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                },
+                "medium": {
+                  "model": "en_GB-cori-medium.onnx",
+                  "config": "en_GB-cori-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "jenny_dioco": {
+              "gender": "female",
+              "display_name": "Jenny Dioco",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "en_GB-jenny_dioco-medium.onnx",
+                  "config": "en_GB-jenny_dioco-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "northern_english_male": {
+              "gender": "male",
+              "display_name": "Northern English Male",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "en_GB-northern_english_male-medium.onnx",
+                  "config": "en_GB-northern_english_male-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "semaine": {
+              "gender": "neutral",
+              "display_name": "Semaine",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "en_GB-semaine-medium.onnx",
+                  "config": "en_GB-semaine-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 4
+                }
+              }
+            },
+            "southern_english_female": {
+              "gender": "female",
+              "display_name": "Southern English Female",
+              "description": "",
+              "qualities": {
+                "low": {
+                  "model": "en_GB-southern_english_female-low.onnx",
+                  "config": "en_GB-southern_english_female-low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "vctk": {
+              "gender": "neutral",
+              "display_name": "Vctk",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "en_GB-vctk-medium.onnx",
+                  "config": "en_GB-vctk-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 109
+                }
+              }
+            }
+          }
+        },
+        "US": {
+          "voices": {
+            "amy": {
+              "gender": "female",
+              "display_name": "Amy",
+              "description": "",
+              "qualities": {
+                "low": {
+                  "model": "en_US-amy-low.onnx",
+                  "config": "en_US-amy-low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                },
+                "medium": {
+                  "model": "en_US-amy-medium.onnx",
+                  "config": "en_US-amy-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "arctic": {
+              "gender": "male",
+              "display_name": "Arctic",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "en_US-arctic-medium.onnx",
+                  "config": "en_US-arctic-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 18
+                }
+              }
+            },
+            "bryce": {
+              "gender": "male",
+              "display_name": "Bryce",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "en_US-bryce-medium.onnx",
+                  "config": "en_US-bryce-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "danny": {
+              "gender": "male",
+              "display_name": "Danny",
+              "description": "",
+              "qualities": {
+                "low": {
+                  "model": "en_US-danny-low.onnx",
+                  "config": "en_US-danny-low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "hfc_female": {
+              "gender": "female",
+              "display_name": "Hfc Female",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "en_US-hfc_female-medium.onnx",
+                  "config": "en_US-hfc_female-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "hfc_male": {
+              "gender": "male",
+              "display_name": "Hfc Male",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "en_US-hfc_male-medium.onnx",
+                  "config": "en_US-hfc_male-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "joe": {
+              "gender": "male",
+              "display_name": "Joe",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "en_US-joe-medium.onnx",
+                  "config": "en_US-joe-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "john": {
+              "gender": "male",
+              "display_name": "John",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "en_US-john-medium.onnx",
+                  "config": "en_US-john-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "kathleen": {
+              "gender": "female",
+              "display_name": "Kathleen",
+              "description": "",
+              "qualities": {
+                "low": {
+                  "model": "en_US-kathleen-low.onnx",
+                  "config": "en_US-kathleen-low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "kristin": {
+              "gender": "female",
+              "display_name": "Kristin",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "en_US-kristin-medium.onnx",
+                  "config": "en_US-kristin-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "kusal": {
+              "gender": "male",
+              "display_name": "Kusal",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "en_US-kusal-medium.onnx",
+                  "config": "en_US-kusal-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "l2arctic": {
+              "gender": "male",
+              "display_name": "L2arctic",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "en_US-l2arctic-medium.onnx",
+                  "config": "en_US-l2arctic-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 24
+                }
+              }
+            },
+            "lessac": {
+              "gender": "female",
+              "display_name": "Lessac",
+              "description": "",
+              "qualities": {
+                "high": {
+                  "model": "en_US-lessac-high.onnx",
+                  "config": "en_US-lessac-high.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                },
+                "low": {
+                  "model": "en_US-lessac-low.onnx",
+                  "config": "en_US-lessac-low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                },
+                "medium": {
+                  "model": "en_US-lessac-medium.onnx",
+                  "config": "en_US-lessac-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "libritts": {
+              "gender": "neutral",
+              "display_name": "Libritts",
+              "description": "",
+              "qualities": {
+                "high": {
+                  "model": "en_US-libritts-high.onnx",
+                  "config": "en_US-libritts-high.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 904
+                }
+              }
+            },
+            "libritts_r": {
+              "gender": "neutral",
+              "display_name": "Libritts R",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "en_US-libritts_r-medium.onnx",
+                  "config": "en_US-libritts_r-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 904
+                }
+              }
+            },
+            "ljspeech": {
+              "gender": "female",
+              "display_name": "Ljspeech",
+              "description": "",
+              "qualities": {
+                "high": {
+                  "model": "en_US-ljspeech-high.onnx",
+                  "config": "en_US-ljspeech-high.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                },
+                "medium": {
+                  "model": "en_US-ljspeech-medium.onnx",
+                  "config": "en_US-ljspeech-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "norman": {
+              "gender": "male",
+              "display_name": "Norman",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "en_US-norman-medium.onnx",
+                  "config": "en_US-norman-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "reza_ibrahim": {
+              "gender": "male",
+              "display_name": "Reza Ibrahim",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "en_US-reza_ibrahim-medium.onnx",
+                  "config": "en_US-reza_ibrahim-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "ryan": {
+              "gender": "male",
+              "display_name": "Ryan",
+              "description": "",
+              "qualities": {
+                "high": {
+                  "model": "en_US-ryan-high.onnx",
+                  "config": "en_US-ryan-high.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                },
+                "low": {
+                  "model": "en_US-ryan-low.onnx",
+                  "config": "en_US-ryan-low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                },
+                "medium": {
+                  "model": "en_US-ryan-medium.onnx",
+                  "config": "en_US-ryan-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "sam": {
+              "gender": "neutral",
+              "display_name": "Sam",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "en_US-sam-medium.onnx",
+                  "config": "en_US-sam-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "es": {
+      "locales": {
+        "AR": {
+          "voices": {
+            "daniela": {
+              "gender": "female",
+              "display_name": "Daniela",
+              "description": "",
+              "qualities": {
+                "high": {
+                  "model": "es_AR-daniela-high.onnx",
+                  "config": "es_AR-daniela-high.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        },
+        "ES": {
+          "voices": {
+            "carlfm": {
+              "gender": "neutral",
+              "display_name": "Carlfm",
+              "description": "",
+              "qualities": {
+                "x_low": {
+                  "model": "es_ES-carlfm-x_low.onnx",
+                  "config": "es_ES-carlfm-x_low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "davefx": {
+              "gender": "male",
+              "display_name": "Davefx",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "es_ES-davefx-medium.onnx",
+                  "config": "es_ES-davefx-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "mls_10246": {
+              "gender": "neutral",
+              "display_name": "Mls 10246",
+              "description": "",
+              "qualities": {
+                "low": {
+                  "model": "es_ES-mls_10246-low.onnx",
+                  "config": "es_ES-mls_10246-low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "mls_9972": {
+              "gender": "neutral",
+              "display_name": "Mls 9972",
+              "description": "",
+              "qualities": {
+                "low": {
+                  "model": "es_ES-mls_9972-low.onnx",
+                  "config": "es_ES-mls_9972-low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "sharvard": {
+              "gender": "male",
+              "display_name": "Sharvard",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "es_ES-sharvard-medium.onnx",
+                  "config": "es_ES-sharvard-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 2
+                }
+              }
+            }
+          }
+        },
+        "MX": {
+          "voices": {
+            "ald": {
+              "gender": "male",
+              "display_name": "Ald",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "es_MX-ald-medium.onnx",
+                  "config": "es_MX-ald-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "claude": {
+              "gender": "male",
+              "display_name": "Claude",
+              "description": "",
+              "qualities": {
+                "high": {
+                  "model": "es_MX-claude-high.onnx",
+                  "config": "es_MX-claude-high.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "fa": {
+      "locales": {
+        "IR": {
+          "voices": {
+            "amir": {
+              "gender": "male",
+              "display_name": "Amir",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "fa_IR-amir-medium.onnx",
+                  "config": "fa_IR-amir-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "ganji_adabi": {
+              "gender": "neutral",
+              "display_name": "Ganji Adabi",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "fa_IR-ganji_adabi-medium.onnx",
+                  "config": "fa_IR-ganji_adabi-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "ganji": {
+              "gender": "neutral",
+              "display_name": "Ganji",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "fa_IR-ganji-medium.onnx",
+                  "config": "fa_IR-ganji-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "gyro": {
+              "gender": "male",
+              "display_name": "Gyro",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "fa_IR-gyro-medium.onnx",
+                  "config": "fa_IR-gyro-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "reza_ibrahim": {
+              "gender": "male",
+              "display_name": "Reza Ibrahim",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "fa_IR-reza_ibrahim-medium.onnx",
+                  "config": "fa_IR-reza_ibrahim-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "fi": {
+      "locales": {
+        "FI": {
+          "voices": {
+            "harri": {
+              "gender": "male",
+              "display_name": "Harri",
+              "description": "",
+              "qualities": {
+                "low": {
+                  "model": "fi_FI-harri-low.onnx",
+                  "config": "fi_FI-harri-low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                },
+                "medium": {
+                  "model": "fi_FI-harri-medium.onnx",
+                  "config": "fi_FI-harri-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "fr": {
+      "locales": {
+        "FR": {
+          "voices": {
+            "gilles": {
+              "gender": "male",
+              "display_name": "Gilles",
+              "description": "",
+              "qualities": {
+                "low": {
+                  "model": "fr_FR-gilles-low.onnx",
+                  "config": "fr_FR-gilles-low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "mls_1840": {
+              "gender": "neutral",
+              "display_name": "Mls 1840",
+              "description": "",
+              "qualities": {
+                "low": {
+                  "model": "fr_FR-mls_1840-low.onnx",
+                  "config": "fr_FR-mls_1840-low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "mls": {
+              "gender": "neutral",
+              "display_name": "Mls",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "fr_FR-mls-medium.onnx",
+                  "config": "fr_FR-mls-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 125
+                }
+              }
+            },
+            "siwis": {
+              "gender": "female",
+              "display_name": "Siwis",
+              "description": "",
+              "qualities": {
+                "low": {
+                  "model": "fr_FR-siwis-low.onnx",
+                  "config": "fr_FR-siwis-low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                },
+                "medium": {
+                  "model": "fr_FR-siwis-medium.onnx",
+                  "config": "fr_FR-siwis-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "tom": {
+              "gender": "male",
+              "display_name": "Tom",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "fr_FR-tom-medium.onnx",
+                  "config": "fr_FR-tom-medium.onnx.json",
+                  "sample_rate": 44100,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "upmc": {
+              "gender": "neutral",
+              "display_name": "Upmc",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "fr_FR-upmc-medium.onnx",
+                  "config": "fr_FR-upmc-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 2
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "hi": {
+      "locales": {
+        "IN": {
+          "voices": {
+            "pratham": {
+              "gender": "neutral",
+              "display_name": "Pratham",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "hi_IN-pratham-medium.onnx",
+                  "config": "hi_IN-pratham-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "priyamvada": {
+              "gender": "female",
+              "display_name": "Priyamvada",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "hi_IN-priyamvada-medium.onnx",
+                  "config": "hi_IN-priyamvada-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "rohan": {
+              "gender": "male",
+              "display_name": "Rohan",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "hi_IN-rohan-medium.onnx",
+                  "config": "hi_IN-rohan-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "hu": {
+      "locales": {
+        "HU": {
+          "voices": {
+            "anna": {
+              "gender": "female",
+              "display_name": "Anna",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "hu_HU-anna-medium.onnx",
+                  "config": "hu_HU-anna-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "berta": {
+              "gender": "female",
+              "display_name": "Berta",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "hu_HU-berta-medium.onnx",
+                  "config": "hu_HU-berta-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "imre": {
+              "gender": "male",
+              "display_name": "Imre",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "hu_HU-imre-medium.onnx",
+                  "config": "hu_HU-imre-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "id": {
+      "locales": {
+        "ID": {
+          "voices": {
+            "news_tts": {
+              "gender": "neutral",
+              "display_name": "News Tts",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "id_ID-news_tts-medium.onnx",
+                  "config": "id_ID-news_tts-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "is": {
+      "locales": {
+        "IS": {
+          "voices": {
+            "bui": {
+              "gender": "male",
+              "display_name": "Bui",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "is_IS-bui-medium.onnx",
+                  "config": "is_IS-bui-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "salka": {
+              "gender": "female",
+              "display_name": "Salka",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "is_IS-salka-medium.onnx",
+                  "config": "is_IS-salka-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "steinn": {
+              "gender": "male",
+              "display_name": "Steinn",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "is_IS-steinn-medium.onnx",
+                  "config": "is_IS-steinn-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "ugla": {
+              "gender": "female",
+              "display_name": "Ugla",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "is_IS-ugla-medium.onnx",
+                  "config": "is_IS-ugla-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "it": {
+      "locales": {
+        "IT": {
+          "voices": {
+            "paola": {
+              "gender": "female",
+              "display_name": "Paola",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "it_IT-paola-medium.onnx",
+                  "config": "it_IT-paola-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "riccardo": {
+              "gender": "male",
+              "display_name": "Riccardo",
+              "description": "",
+              "qualities": {
+                "x_low": {
+                  "model": "it_IT-riccardo-x_low.onnx",
+                  "config": "it_IT-riccardo-x_low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "ka": {
+      "locales": {
+        "GE": {
+          "voices": {
+            "natia": {
+              "gender": "female",
+              "display_name": "Natia",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "ka_GE-natia-medium.onnx",
+                  "config": "ka_GE-natia-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "kk": {
+      "locales": {
+        "KZ": {
+          "voices": {
+            "iseke": {
+              "gender": "neutral",
+              "display_name": "Iseke",
+              "description": "",
+              "qualities": {
+                "x_low": {
+                  "model": "kk_KZ-iseke-x_low.onnx",
+                  "config": "kk_KZ-iseke-x_low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "issai": {
+              "gender": "neutral",
+              "display_name": "Issai",
+              "description": "",
+              "qualities": {
+                "high": {
+                  "model": "kk_KZ-issai-high.onnx",
+                  "config": "kk_KZ-issai-high.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 6
+                }
+              }
+            },
+            "raya": {
+              "gender": "neutral",
+              "display_name": "Raya",
+              "description": "",
+              "qualities": {
+                "x_low": {
+                  "model": "kk_KZ-raya-x_low.onnx",
+                  "config": "kk_KZ-raya-x_low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "lb": {
+      "locales": {
+        "LU": {
+          "voices": {
+            "marylux": {
+              "gender": "female",
+              "display_name": "Marylux",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "lb_LU-marylux-medium.onnx",
+                  "config": "lb_LU-marylux-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "lv": {
+      "locales": {
+        "LV": {
+          "voices": {
+            "aivars": {
+              "gender": "male",
+              "display_name": "Aivars",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "lv_LV-aivars-medium.onnx",
+                  "config": "lv_LV-aivars-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "ml": {
+      "locales": {
+        "IN": {
+          "voices": {
+            "arjun": {
+              "gender": "male",
+              "display_name": "Arjun",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "ml_IN-arjun-medium.onnx",
+                  "config": "ml_IN-arjun-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "meera": {
+              "gender": "female",
+              "display_name": "Meera",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "ml_IN-meera-medium.onnx",
+                  "config": "ml_IN-meera-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "ne": {
+      "locales": {
+        "NP": {
+          "voices": {
+            "chitwan": {
+              "gender": "female",
+              "display_name": "Chitwan",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "ne_NP-chitwan-medium.onnx",
+                  "config": "ne_NP-chitwan-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "google": {
+              "gender": "neutral",
+              "display_name": "Google",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "ne_NP-google-medium.onnx",
+                  "config": "ne_NP-google-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 18
+                },
+                "x_low": {
+                  "model": "ne_NP-google-x_low.onnx",
+                  "config": "ne_NP-google-x_low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 18
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "nl": {
+      "locales": {
+        "BE": {
+          "voices": {
+            "nathalie": {
+              "gender": "female",
+              "display_name": "Nathalie",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "nl_BE-nathalie-medium.onnx",
+                  "config": "nl_BE-nathalie-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                },
+                "x_low": {
+                  "model": "nl_BE-nathalie-x_low.onnx",
+                  "config": "nl_BE-nathalie-x_low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "rdh": {
+              "gender": "male",
+              "display_name": "Rdh",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "nl_BE-rdh-medium.onnx",
+                  "config": "nl_BE-rdh-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                },
+                "x_low": {
+                  "model": "nl_BE-rdh-x_low.onnx",
+                  "config": "nl_BE-rdh-x_low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        },
+        "NL": {
+          "voices": {
+            "mls_5809": {
+              "gender": "neutral",
+              "display_name": "Mls 5809",
+              "description": "",
+              "qualities": {
+                "low": {
+                  "model": "nl_NL-mls_5809-low.onnx",
+                  "config": "nl_NL-mls_5809-low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "mls_7432": {
+              "gender": "neutral",
+              "display_name": "Mls 7432",
+              "description": "",
+              "qualities": {
+                "low": {
+                  "model": "nl_NL-mls_7432-low.onnx",
+                  "config": "nl_NL-mls_7432-low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "mls": {
+              "gender": "neutral",
+              "display_name": "Mls",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "nl_NL-mls-medium.onnx",
+                  "config": "nl_NL-mls-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 52
+                }
+              }
+            },
+            "pim": {
+              "gender": "male",
+              "display_name": "Pim",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "nl_NL-pim-medium.onnx",
+                  "config": "nl_NL-pim-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "ronnie": {
+              "gender": "male",
+              "display_name": "Ronnie",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "nl_NL-ronnie-medium.onnx",
+                  "config": "nl_NL-ronnie-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "no": {
+      "locales": {
+        "NO": {
+          "voices": {
+            "talesyntese": {
+              "gender": "neutral",
+              "display_name": "Talesyntese",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "no_NO-talesyntese-medium.onnx",
+                  "config": "no_NO-talesyntese-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "pl": {
+      "locales": {
+        "PL": {
+          "voices": {
+            "darkman": {
+              "gender": "male",
+              "display_name": "Darkman",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "pl_PL-darkman-medium.onnx",
+                  "config": "pl_PL-darkman-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "gosia": {
+              "gender": "female",
+              "display_name": "Gosia",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "pl_PL-gosia-medium.onnx",
+                  "config": "pl_PL-gosia-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "mc_speech": {
+              "gender": "male",
+              "display_name": "Mc Speech",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "pl_PL-mc_speech-medium.onnx",
+                  "config": "pl_PL-mc_speech-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "mls_6892": {
+              "gender": "neutral",
+              "display_name": "Mls 6892",
+              "description": "",
+              "qualities": {
+                "low": {
+                  "model": "pl_PL-mls_6892-low.onnx",
+                  "config": "pl_PL-mls_6892-low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "pt": {
+      "locales": {
+        "BR": {
+          "voices": {
+            "cadu": {
+              "gender": "male",
+              "display_name": "Cadu",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "pt_BR-cadu-medium.onnx",
+                  "config": "pt_BR-cadu-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "edresson": {
+              "gender": "male",
+              "display_name": "Edresson",
+              "description": "",
+              "qualities": {
+                "low": {
+                  "model": "pt_BR-edresson-low.onnx",
+                  "config": "pt_BR-edresson-low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "faber": {
+              "gender": "male",
+              "display_name": "Faber",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "pt_BR-faber-medium.onnx",
+                  "config": "pt_BR-faber-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "jeff": {
+              "gender": "male",
+              "display_name": "Jeff",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "pt_BR-jeff-medium.onnx",
+                  "config": "pt_BR-jeff-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        },
+        "PT": {
+          "voices": {
+            "tugão": {
+              "gender": "neutral",
+              "display_name": "Tug��O",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "pt_PT-tugão-medium.onnx",
+                  "config": "pt_PT-tugão-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "ro": {
+      "locales": {
+        "RO": {
+          "voices": {
+            "mihai": {
+              "gender": "male",
+              "display_name": "Mihai",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "ro_RO-mihai-medium.onnx",
+                  "config": "ro_RO-mihai-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "ru": {
+      "locales": {
+        "RU": {
+          "voices": {
+            "denis": {
+              "gender": "male",
+              "display_name": "Denis",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "ru_RU-denis-medium.onnx",
+                  "config": "ru_RU-denis-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "dmitri": {
+              "gender": "male",
+              "display_name": "Dmitri",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "ru_RU-dmitri-medium.onnx",
+                  "config": "ru_RU-dmitri-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "irina": {
+              "gender": "female",
+              "display_name": "Irina",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "ru_RU-irina-medium.onnx",
+                  "config": "ru_RU-irina-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "ruslan": {
+              "gender": "male",
+              "display_name": "Ruslan",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "ru_RU-ruslan-medium.onnx",
+                  "config": "ru_RU-ruslan-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "sk": {
+      "locales": {
+        "SK": {
+          "voices": {
+            "lili": {
+              "gender": "female",
+              "display_name": "Lili",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "sk_SK-lili-medium.onnx",
+                  "config": "sk_SK-lili-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "sl": {
+      "locales": {
+        "SI": {
+          "voices": {
+            "artur": {
+              "gender": "male",
+              "display_name": "Artur",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "sl_SI-artur-medium.onnx",
+                  "config": "sl_SI-artur-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "sr": {
+      "locales": {
+        "RS": {
+          "voices": {
+            "serbski_institut": {
+              "gender": "neutral",
+              "display_name": "Serbski Institut",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "sr_RS-serbski_institut-medium.onnx",
+                  "config": "sr_RS-serbski_institut-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 2
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "sv": {
+      "locales": {
+        "SE": {
+          "voices": {
+            "lisa": {
+              "gender": "female",
+              "display_name": "Lisa",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "sv_SE-lisa-medium.onnx",
+                  "config": "sv_SE-lisa-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "nst": {
+              "gender": "neutral",
+              "display_name": "Nst",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "sv_SE-nst-medium.onnx",
+                  "config": "sv_SE-nst-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "sw": {
+      "locales": {
+        "CD": {
+          "voices": {
+            "lanfrica": {
+              "gender": "neutral",
+              "display_name": "Lanfrica",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "sw_CD-lanfrica-medium.onnx",
+                  "config": "sw_CD-lanfrica-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "te": {
+      "locales": {
+        "IN": {
+          "voices": {
+            "maya": {
+              "gender": "female",
+              "display_name": "Maya",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "te_IN-maya-medium.onnx",
+                  "config": "te_IN-maya-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "padmavathi": {
+              "gender": "female",
+              "display_name": "Padmavathi",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "te_IN-padmavathi-medium.onnx",
+                  "config": "te_IN-padmavathi-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "venkatesh": {
+              "gender": "male",
+              "display_name": "Venkatesh",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "te_IN-venkatesh-medium.onnx",
+                  "config": "te_IN-venkatesh-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "tr": {
+      "locales": {
+        "TR": {
+          "voices": {
+            "dfki": {
+              "gender": "male",
+              "display_name": "Dfki",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "tr_TR-dfki-medium.onnx",
+                  "config": "tr_TR-dfki-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "fahrettin": {
+              "gender": "male",
+              "display_name": "Fahrettin",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "tr_TR-fahrettin-medium.onnx",
+                  "config": "tr_TR-fahrettin-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "fettah": {
+              "gender": "male",
+              "display_name": "Fettah",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "tr_TR-fettah-medium.onnx",
+                  "config": "tr_TR-fettah-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "uk": {
+      "locales": {
+        "UA": {
+          "voices": {
+            "lada": {
+              "gender": "female",
+              "display_name": "Lada",
+              "description": "",
+              "qualities": {
+                "x_low": {
+                  "model": "uk_UA-lada-x_low.onnx",
+                  "config": "uk_UA-lada-x_low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "ukrainian_tts": {
+              "gender": "neutral",
+              "display_name": "Ukrainian Tts",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "uk_UA-ukrainian_tts-medium.onnx",
+                  "config": "uk_UA-ukrainian_tts-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 3
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "vi": {
+      "locales": {
+        "VN": {
+          "voices": {
+            "25hours_single": {
+              "gender": "neutral",
+              "display_name": "25hours Single",
+              "description": "",
+              "qualities": {
+                "low": {
+                  "model": "vi_VN-25hours_single-low.onnx",
+                  "config": "vi_VN-25hours_single-low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "vais1000": {
+              "gender": "neutral",
+              "display_name": "Vais1000",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "vi_VN-vais1000-medium.onnx",
+                  "config": "vi_VN-vais1000-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                }
+              }
+            },
+            "vivos": {
+              "gender": "neutral",
+              "display_name": "Vivos",
+              "description": "",
+              "qualities": {
+                "x_low": {
+                  "model": "vi_VN-vivos-x_low.onnx",
+                  "config": "vi_VN-vivos-x_low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 65
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "zh": {
+      "locales": {
+        "CN": {
+          "voices": {
+            "huayan": {
+              "gender": "female",
+              "display_name": "Huayan",
+              "description": "",
+              "qualities": {
+                "medium": {
+                  "model": "zh_CN-huayan-medium.onnx",
+                  "config": "zh_CN-huayan-medium.onnx.json",
+                  "sample_rate": 22050,
+                  "num_speakers": 1
+                },
+                "x_low": {
+                  "model": "zh_CN-huayan-x_low.onnx",
+                  "config": "zh_CN-huayan-x_low.onnx.json",
+                  "sample_rate": 16000,
+                  "num_speakers": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

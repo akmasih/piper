@@ -1,32 +1,21 @@
-# File: docker-compose.yml - /root/piper/docker-compose.yml
-# Docker Compose configuration for Piper TTS service with host network
+# docker-compose.yml
+# /root/piper/docker-compose.yml
+# Piper TTS Server deployment
 
 services:
-  piper-tts:
+  piper:
     build: .
     container_name: piper-tts
+    network_mode: host
     restart: unless-stopped
-    network_mode: "host"
     volumes:
-      - ./models:/app/models
-      - ./app:/app/app:ro
+      - ./models:/app/models:ro
+      - ./app:/app:ro
     environment:
-      - PYTHONUNBUFFERED=1
-      - TZ=UTC
-    env_file:
-      - .env
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/piper/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "3"
-    ulimits:
-      nofile:
-        soft: 65536
-        hard: 65536
+      - MODELS_DIR=/app/models
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DEFAULT_LANGUAGE=en
+      - DEFAULT_LOCALE=US
+      - DEFAULT_QUALITY=high
+      - MAX_TEXT_LENGTH=5000

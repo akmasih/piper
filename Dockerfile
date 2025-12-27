@@ -1,47 +1,49 @@
-# File: Dockerfile - /root/piper/Dockerfile
-# Docker image for Piper TTS service with updated dependencies
+# Dockerfile
+# /root/piper/Dockerfile
+# Piper TTS Server container
 
 FROM python:3.11-slim
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    wget \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
-    libsndfile1 \
     espeak-ng \
-    build-essential \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Install piper-tts
+RUN pip install --no-cache-dir piper-tts
+
+# Create app user
+RUN useradd -m -u 1000 piper
+
+# Set working directory
 WORKDIR /app
 
-# Install Piper TTS latest version
-RUN pip install --no-cache-dir piper-tts==1.3.0
+# Copy application code
+COPY --chown=piper:piper app/ /app/
 
-# Copy and install Python requirements
-COPY app/requirements.txt /app/
+# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY app/ /app/app/
+# Create models directory
+RUN mkdir -p /app/models && chown piper:piper /app/models
 
-# Create necessary directories
-RUN mkdir -p /app/models \
-    && mkdir -p /tmp/piper \
-    && chmod 777 /tmp/piper
-
-# Create non-root user for security
-RUN useradd -m -u 1000 piper && \
-    chown -R piper:piper /app /tmp/piper
-
+# Switch to non-root user
 USER piper
 
-# Expose service port
-EXPOSE 8000
+# Environment variables
+ENV PYTHONUNBUFFERED=1 \
+    MODELS_DIR=/app/models \
+    HOST=0.0.0.0 \
+    PORT=8000
 
-# Health check configuration
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/piper/health || exit 1
 
-# Start the service with uvicorn
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+# Expose port
+EXPOSE 8000
+
+# Run server
+CMD ["python", "main.py"]
