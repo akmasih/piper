@@ -8,14 +8,20 @@ services:
     container_name: piper-tts
     network_mode: host
     restart: unless-stopped
+    env_file:
+      - .env
     volumes:
+      # Mount models directory read-only
       - ./models:/app/models:ro
-      - ./app:/app:ro
-    environment:
-      - MODELS_DIR=/app/models
-      - HOST=0.0.0.0
-      - PORT=8000
-      - DEFAULT_LANGUAGE=en
-      - DEFAULT_LOCALE=US
-      - DEFAULT_QUALITY=high
-      - MAX_TEXT_LENGTH=5000
+      # Mount temp directory for audio processing
+      - piper-temp:/tmp/piper
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/piper/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
+
+volumes:
+  piper-temp:
+    driver: local

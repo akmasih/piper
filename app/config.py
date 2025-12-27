@@ -544,28 +544,67 @@ class VoiceCatalog:
 
 
 class Settings:
-    """Application settings"""
+    """Application settings loaded from environment variables"""
 
     def __init__(self):
+        # Server Configuration
         self.server_name = os.getenv("SERVER_NAME", "piper")
         self.host = os.getenv("HOST", "0.0.0.0")
         self.port = int(os.getenv("PORT", "8000"))
+        self.tailscale_ip = os.getenv("TAILSCALE_IP", "")
+        
+        # Security - Allowed backend IP
+        self.backend_ip = os.getenv("BACKEND_IP", "")
+        
+        # Models Directory
         self.models_dir = Path(os.getenv("MODELS_DIR", "/app/models"))
         self.voice_index_path = self.models_dir / "voice_index.json"
 
         # TTS defaults
         self.default_language = os.getenv("DEFAULT_LANGUAGE", "en")
-        self.default_locale = os.getenv("DEFAULT_LOCALE", "US")
+        self.default_locale = os.getenv("DEFAULT_REGION", "US")
+        self.default_voice = os.getenv("DEFAULT_VOICE", "lessac")
         self.default_quality = os.getenv("DEFAULT_QUALITY", "high")
         self.default_speed = float(os.getenv("DEFAULT_SPEED", "1.0"))
 
+        # Audio Configuration
+        self.default_sample_rate = int(os.getenv("DEFAULT_SAMPLE_RATE", "22050"))
+        self.output_format = os.getenv("OUTPUT_FORMAT", "mp3")
+        self.mp3_bitrate = os.getenv("MP3_BITRATE", "128k")
+        
         # Limits
         self.max_text_length = int(os.getenv("MAX_TEXT_LENGTH", "5000"))
         self.min_speed = 0.5
         self.max_speed = 2.0
+        
+        # Performance Settings
+        self.max_concurrent_requests = int(os.getenv("MAX_CONCURRENT_REQUESTS", "10"))
+        self.request_timeout = int(os.getenv("REQUEST_TIMEOUT", "30"))
+        self.worker_threads = int(os.getenv("WORKER_THREADS", "4"))
+        
+        # Temporary Directory
+        self.temp_dir = Path(os.getenv("TEMP_DIR", "/tmp/piper"))
+        
+        # Rate Limiting
+        self.rate_limit_enabled = os.getenv("RATE_LIMIT_ENABLED", "false").lower() == "true"
+        self.rate_limit_per_minute = int(os.getenv("RATE_LIMIT_PER_MINUTE", "100"))
+        
+        # Monitoring Configuration
+        self.monitoring_enabled = os.getenv("MONITORING_ENABLED", "false").lower() == "true"
+        self.log_server_ip = os.getenv("LOG_SERVER_IP", "")
+        self.loki_url = os.getenv("LOKI_URL", "")
+        self.prometheus_url = os.getenv("PROMETHEUS_URL", "")
+        
+        # Logging
+        self.log_level = os.getenv("LOG_LEVEL", "INFO")
+        self.log_format = os.getenv("LOG_FORMAT", "json")
 
         # Voice catalog
         self.catalog = VoiceCatalog()
+        
+    def ensure_temp_dir(self) -> None:
+        """Create temp directory if it doesn't exist"""
+        self.temp_dir.mkdir(parents=True, exist_ok=True)
 
     def load_voices(self) -> bool:
         """Load voice catalog from index file"""
@@ -573,6 +612,19 @@ class Settings:
             logger.error(f"Voice index not found: {self.voice_index_path}")
             return False
         return self.catalog.load_from_index(str(self.voice_index_path))
+    
+    def is_allowed_ip(self, client_ip: str) -> bool:
+        """Check if client IP is allowed to connect"""
+        # If no backend IP configured, allow all (for development)
+        if not self.backend_ip:
+            return True
+        
+        # Allow localhost for health checks
+        if client_ip in ("127.0.0.1", "::1", "localhost"):
+            return True
+            
+        # Allow configured backend IP
+        return client_ip == self.backend_ip
 
 
 # Global settings instance

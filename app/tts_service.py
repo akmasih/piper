@@ -101,6 +101,9 @@ class TTSService:
     def __init__(self):
         self.models_dir = settings.models_dir
         self.catalog = settings.catalog
+        self.temp_dir = settings.temp_dir
+        self.mp3_bitrate = settings.mp3_bitrate
+        self.default_sample_rate = settings.default_sample_rate
 
     async def generate_speech(
         self,
@@ -165,9 +168,10 @@ class TTSService:
         audio_data = await self._synthesize(
             text=text,
             model_path=str(self.models_dir / variant.model_file),
-            config_path=str(self.models_dir / variant.config_file),
+            sample_rate=variant.sample_rate,
             speed=speed,
             speaker_id=speaker_id,
+            num_speakers=variant.num_speakers,
         )
 
         return audio_data
@@ -351,97 +355,122 @@ class TTSService:
         self,
         text: str,
         model_path: str,
-        config_path: str,
+        sample_rate: int,
         speed: float,
         speaker_id: int,
+        num_speakers: int,
     ) -> BinaryIO:
         """
         Run Piper TTS synthesis and return MP3 audio.
         
-        Uses piper CLI: echo "text" | piper --model X --config Y --output_raw | ffmpeg ...
+        Piper automatically finds the .onnx.json config file next to the model.
+        Uses: echo "text" | piper --model X --output_file Y
         """
         try:
+            # Ensure temp directory exists
+            self.temp_dir.mkdir(parents=True, exist_ok=True)
+            
             # Create temp files for audio pipeline
-            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as wav_file:
-                wav_path = wav_file.name
+            wav_path = self.temp_dir / f"tts_{id(text)}_{hash(text) % 10000}.wav"
+            mp3_path = self.temp_dir / f"tts_{id(text)}_{hash(text) % 10000}.mp3"
 
-            with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as mp3_file:
-                mp3_path = mp3_file.name
+            try:
+                # Build piper command
+                # Note: Piper automatically loads .onnx.json config from same directory
+                piper_cmd = [
+                    "piper",
+                    "--model", model_path,
+                    "--output_file", str(wav_path),
+                    "--length_scale", str(1.0 / speed),  # Piper uses length_scale (inverse of speed)
+                ]
 
-            # Build piper command
-            piper_cmd = [
-                "piper",
-                "--model", model_path,
-                "--config", config_path,
-                "--output_file", wav_path,
-                "--length_scale", str(1.0 / speed),  # Piper uses length_scale (inverse of speed)
-            ]
+                # Add speaker ID for multi-speaker models
+                if num_speakers > 1 and speaker_id > 0:
+                    piper_cmd.extend(["--speaker", str(speaker_id)])
 
-            if speaker_id > 0:
-                piper_cmd.extend(["--speaker", str(speaker_id)])
+                logger.debug(f"Running piper command: {' '.join(piper_cmd)}")
 
-            # Run piper
-            process = await asyncio.create_subprocess_exec(
-                *piper_cmd,
-                stdin=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-
-            stdout, stderr = await process.communicate(input=text.encode("utf-8"))
-
-            if process.returncode != 0:
-                error_msg = stderr.decode("utf-8", errors="replace")
-                logger.error(f"Piper error: {error_msg}")
-                raise SynthesisError(
-                    f"Speech synthesis failed: {error_msg[:200]}",
-                    ErrorContext(
-                        requested=f"model={model_path}",
-                        available=[],
-                        hint="Check if model file exists and is valid",
-                    )
+                # Run piper with text as stdin
+                process = await asyncio.create_subprocess_exec(
+                    *piper_cmd,
+                    stdin=asyncio.subprocess.PIPE,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
                 )
 
-            # Convert WAV to MP3 with ffmpeg
-            ffmpeg_cmd = [
-                "ffmpeg",
-                "-y",  # Overwrite
-                "-i", wav_path,
-                "-codec:a", "libmp3lame",
-                "-b:a", "48k",
-                "-ar", "24000",
-                "-ac", "1",
-                mp3_path,
-            ]
+                stdout, stderr = await process.communicate(input=text.encode("utf-8"))
 
-            process = await asyncio.create_subprocess_exec(
-                *ffmpeg_cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-
-            await process.communicate()
-
-            if process.returncode != 0:
-                raise SynthesisError(
-                    "Audio encoding failed",
-                    ErrorContext(
-                        requested="MP3 encoding",
-                        available=[],
-                        hint="FFmpeg error during audio conversion",
+                if process.returncode != 0:
+                    error_msg = stderr.decode("utf-8", errors="replace")
+                    logger.error(f"Piper error: {error_msg}")
+                    raise SynthesisError(
+                        f"Speech synthesis failed: {error_msg[:200]}",
+                        ErrorContext(
+                            requested=f"model={Path(model_path).name}",
+                            available=[],
+                            hint="Check if model file exists and is valid",
+                        )
                     )
+
+                # Check if WAV file was created
+                if not wav_path.exists():
+                    raise SynthesisError(
+                        "Piper did not produce output audio",
+                        ErrorContext(
+                            requested=f"model={Path(model_path).name}",
+                            available=[],
+                            hint="Model may be corrupted or incompatible",
+                        )
+                    )
+
+                # Convert WAV to MP3 with ffmpeg using configured bitrate
+                ffmpeg_cmd = [
+                    "ffmpeg",
+                    "-y",  # Overwrite output
+                    "-i", str(wav_path),
+                    "-codec:a", "libmp3lame",
+                    "-b:a", self.mp3_bitrate,  # Use configured bitrate
+                    "-ar", str(sample_rate),  # Use model's sample rate
+                    "-ac", "1",  # Mono audio
+                    "-loglevel", "error",
+                    str(mp3_path),
+                ]
+
+                logger.debug(f"Running ffmpeg command: {' '.join(ffmpeg_cmd)}")
+
+                process = await asyncio.create_subprocess_exec(
+                    *ffmpeg_cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
                 )
 
-            # Read MP3 data
-            with open(mp3_path, "rb") as f:
-                audio_data = BytesIO(f.read())
+                stdout, stderr = await process.communicate()
 
-            # Cleanup temp files
-            Path(wav_path).unlink(missing_ok=True)
-            Path(mp3_path).unlink(missing_ok=True)
+                if process.returncode != 0:
+                    error_msg = stderr.decode("utf-8", errors="replace")
+                    logger.error(f"FFmpeg error: {error_msg}")
+                    raise SynthesisError(
+                        "Audio encoding failed",
+                        ErrorContext(
+                            requested="MP3 encoding",
+                            available=[],
+                            hint=f"FFmpeg error: {error_msg[:100]}",
+                        )
+                    )
 
-            audio_data.seek(0)
-            return audio_data
+                # Read MP3 data into memory
+                with open(mp3_path, "rb") as f:
+                    audio_data = BytesIO(f.read())
+
+                audio_data.seek(0)
+                return audio_data
+
+            finally:
+                # Cleanup temp files
+                if wav_path.exists():
+                    wav_path.unlink(missing_ok=True)
+                if mp3_path.exists():
+                    mp3_path.unlink(missing_ok=True)
 
         except SynthesisError:
             raise

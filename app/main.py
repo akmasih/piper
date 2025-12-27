@@ -1,14 +1,15 @@
 # main.py
 # /root/piper/app/main.py
-# FastAPI application with hierarchical TTS API
+# FastAPI application with hierarchical TTS API and IP filtering
 
 import logging
 import time
 from typing import Optional
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse, JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel, Field
 
 from config import settings
@@ -26,10 +27,63 @@ from tts_service import (
 
 # Logging setup
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, settings.log_level.upper(), logging.INFO),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# IP Filtering Middleware
+# =============================================================================
+
+class IPFilterMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware to filter requests by client IP address.
+    Only allows requests from configured BACKEND_IP.
+    """
+    
+    async def dispatch(self, request: Request, call_next):
+        # Get client IP from request
+        client_ip = self._get_client_ip(request)
+        
+        # Check if IP is allowed
+        if not settings.is_allowed_ip(client_ip):
+            logger.warning(f"Blocked request from unauthorized IP: {client_ip}")
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "error": "Access denied",
+                    "detail": "Your IP address is not authorized to access this service",
+                    "client_ip": client_ip,
+                }
+            )
+        
+        # Process request
+        response = await call_next(request)
+        return response
+    
+    def _get_client_ip(self, request: Request) -> str:
+        """
+        Extract client IP from request, considering proxy headers.
+        Priority: X-Forwarded-For > X-Real-IP > client.host
+        """
+        # Check X-Forwarded-For header (may contain multiple IPs)
+        forwarded_for = request.headers.get("X-Forwarded-For")
+        if forwarded_for:
+            # Take the first IP (original client)
+            return forwarded_for.split(",")[0].strip()
+        
+        # Check X-Real-IP header
+        real_ip = request.headers.get("X-Real-IP")
+        if real_ip:
+            return real_ip.strip()
+        
+        # Fall back to direct client IP
+        if request.client:
+            return request.client.host
+        
+        return "unknown"
 
 
 # =============================================================================
@@ -40,6 +94,12 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
     logger.info("Starting Piper TTS Server...")
+    logger.info(f"Server name: {settings.server_name}")
+    logger.info(f"Allowed backend IP: {settings.backend_ip or 'ALL (no restriction)'}")
+
+    # Ensure temp directory exists
+    settings.ensure_temp_dir()
+    logger.info(f"Temp directory: {settings.temp_dir}")
 
     # Load voice catalog
     if not settings.load_voices():
@@ -65,6 +125,9 @@ app = FastAPI(
     version="2.0.0",
     lifespan=lifespan,
 )
+
+# Add IP filtering middleware
+app.add_middleware(IPFilterMiddleware)
 
 
 # =============================================================================
@@ -164,8 +227,8 @@ async def tts_error_handler(request, exc: TTSError):
 # =============================================================================
 
 @app.get("/piper/health")
-async def health_check():
-    """Health check endpoint"""
+async def health_check(request: Request):
+    """Health check endpoint - always allowed regardless of IP"""
     return {
         "status": "healthy",
         "service": "piper-tts",
@@ -194,6 +257,11 @@ async def server_info():
             "max_text_length": settings.max_text_length,
             "min_speed": settings.min_speed,
             "max_speed": settings.max_speed,
+        },
+        "audio": {
+            "format": settings.output_format,
+            "bitrate": settings.mp3_bitrate,
+            "sample_rate": settings.default_sample_rate,
         },
     }
 
@@ -475,5 +543,6 @@ if __name__ == "__main__":
         host=settings.host,
         port=settings.port,
         reload=False,
-        log_level="info",
+        log_level=settings.log_level.lower(),
+        workers=settings.worker_threads,
     )

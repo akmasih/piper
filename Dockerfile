@@ -26,8 +26,9 @@ COPY --chown=piper:piper app/ /app/
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Create models directory
-RUN mkdir -p /app/models && chown piper:piper /app/models
+# Create directories
+RUN mkdir -p /app/models /tmp/piper && \
+    chown -R piper:piper /app/models /tmp/piper
 
 # Switch to non-root user
 USER piper
@@ -35,11 +36,12 @@ USER piper
 # Environment variables
 ENV PYTHONUNBUFFERED=1 \
     MODELS_DIR=/app/models \
+    TEMP_DIR=/tmp/piper \
     HOST=0.0.0.0 \
     PORT=8000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8000/piper/health || exit 1
 
 # Expose port
