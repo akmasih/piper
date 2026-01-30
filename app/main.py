@@ -1,6 +1,7 @@
 # main.py
-# /root/piper/app/main.py
-# FastAPI application with hierarchical TTS API and IP filtering
+# Path: /root/piper/app/main.py
+# FastAPI application with hierarchical TTS API, IP filtering, and Prometheus metrics
+# Version 2.1.0: Added Prometheus metrics, fixed IP filter for /metrics endpoint
 
 import logging
 import time
@@ -25,6 +26,20 @@ from tts_service import (
     SynthesisError,
 )
 
+# Prometheus metrics
+from metrics import (
+    setup_metrics,
+    track_tts_request,
+    track_text_length,
+    track_audio_size,
+    track_voice_usage,
+    track_tts_error,
+    track_blocked_request,
+    set_catalog_stats,
+    increment_active_generations,
+    decrement_active_generations,
+)
+
 # Logging setup
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper(), logging.INFO),
@@ -37,19 +52,34 @@ logger = logging.getLogger(__name__)
 # IP Filtering Middleware
 # =============================================================================
 
+# Endpoints that bypass IP filtering (accessible from anywhere)
+ALLOWED_ENDPOINTS = {
+    "/piper/health",
+    "/health",
+    "/metrics",
+}
+
+
 class IPFilterMiddleware(BaseHTTPMiddleware):
     """
     Middleware to filter requests by client IP address.
     Only allows requests from configured BACKEND_IP.
+    Exceptions: /health and /metrics endpoints are always allowed.
     """
     
     async def dispatch(self, request: Request, call_next):
+        # Check if endpoint is in allowed list (bypass IP filtering)
+        path = request.url.path
+        if path in ALLOWED_ENDPOINTS:
+            return await call_next(request)
+        
         # Get client IP from request
         client_ip = self._get_client_ip(request)
         
         # Check if IP is allowed
         if not settings.is_allowed_ip(client_ip):
             logger.warning(f"Blocked request from unauthorized IP: {client_ip}")
+            track_blocked_request()
             return JSONResponse(
                 status_code=403,
                 content={
@@ -93,9 +123,10 @@ class IPFilterMiddleware(BaseHTTPMiddleware):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
-    logger.info("Starting Piper TTS Server...")
+    logger.info("Starting Piper TTS Server v2.1.0...")
     logger.info(f"Server name: {settings.server_name}")
     logger.info(f"Allowed backend IP: {settings.backend_ip or 'ALL (no restriction)'}")
+    logger.info("Metrics endpoint: /metrics (bypasses IP filter)")
 
     # Ensure temp directory exists
     settings.ensure_temp_dir()
@@ -105,10 +136,12 @@ async def lifespan(app: FastAPI):
     if not settings.load_voices():
         logger.error("Failed to load voice catalog!")
     else:
-        logger.info(
-            f"Loaded {len(settings.catalog.languages)} languages, "
-            f"{settings.catalog.total_voices} voices"
-        )
+        languages_count = len(settings.catalog.languages)
+        voices_count = settings.catalog.total_voices
+        logger.info(f"Loaded {languages_count} languages, {voices_count} voices")
+        
+        # Update catalog metrics
+        set_catalog_stats(languages_count, voices_count)
 
     yield
 
@@ -122,9 +155,12 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Piper TTS Server",
     description="Multi-language Text-to-Speech with hierarchical voice selection",
-    version="2.0.0",
+    version="2.1.0",
     lifespan=lifespan,
 )
+
+# Setup Prometheus metrics - MUST BE BEFORE IP filtering middleware
+setup_metrics(app, server_version="2.1.0")
 
 # Add IP filtering middleware
 app.add_middleware(IPFilterMiddleware)
@@ -184,41 +220,49 @@ class ErrorResponse(BaseModel):
 
 @app.exception_handler(LanguageNotFoundError)
 async def language_not_found_handler(request, exc: LanguageNotFoundError):
+    track_tts_error("language_not_found")
     return JSONResponse(status_code=404, content=exc.to_dict())
 
 
 @app.exception_handler(LocaleNotFoundError)
 async def locale_not_found_handler(request, exc: LocaleNotFoundError):
+    track_tts_error("locale_not_found")
     return JSONResponse(status_code=404, content=exc.to_dict())
 
 
 @app.exception_handler(GenderNotFoundError)
 async def gender_not_found_handler(request, exc: GenderNotFoundError):
+    track_tts_error("gender_not_found")
     return JSONResponse(status_code=400, content=exc.to_dict())
 
 
 @app.exception_handler(VoiceNotFoundError)
 async def voice_not_found_handler(request, exc: VoiceNotFoundError):
+    track_tts_error("voice_not_found")
     return JSONResponse(status_code=404, content=exc.to_dict())
 
 
 @app.exception_handler(QualityNotFoundError)
 async def quality_not_found_handler(request, exc: QualityNotFoundError):
+    track_tts_error("quality_not_found")
     return JSONResponse(status_code=400, content=exc.to_dict())
 
 
 @app.exception_handler(TextValidationError)
 async def text_validation_handler(request, exc: TextValidationError):
+    track_tts_error("text_validation")
     return JSONResponse(status_code=400, content=exc.to_dict())
 
 
 @app.exception_handler(SynthesisError)
 async def synthesis_error_handler(request, exc: SynthesisError):
+    track_tts_error("synthesis_error")
     return JSONResponse(status_code=500, content=exc.to_dict())
 
 
 @app.exception_handler(TTSError)
 async def tts_error_handler(request, exc: TTSError):
+    track_tts_error("tts_error")
     return JSONResponse(status_code=500, content=exc.to_dict())
 
 
@@ -232,7 +276,7 @@ async def health_check(request: Request):
     return {
         "status": "healthy",
         "service": "piper-tts",
-        "version": "2.0.0",
+        "version": "2.1.0",
         "languages": len(settings.catalog.languages),
         "voices": settings.catalog.total_voices,
     }
@@ -243,7 +287,7 @@ async def server_info():
     """Server information"""
     return {
         "service": "Piper TTS",
-        "version": "2.0.0",
+        "version": "2.1.0",
         "api_version": "v2",
         "hierarchy": "Language → Locale → Gender → Voice → Quality",
         "stats": tts_service.get_stats(),
@@ -493,29 +537,79 @@ async def generate_speech(request: TTSRequest):
     Returns MP3 audio stream.
     """
     start_time = time.time()
+    
+    # Track text length
+    track_text_length(request.language, len(request.text))
+    
+    # Increment active generations
+    increment_active_generations()
+    
+    try:
+        audio_data = await tts_service.generate_speech(
+            text=request.text,
+            language=request.language,
+            locale=request.locale,
+            gender=request.gender,
+            voice=request.voice,
+            quality=request.quality,
+            speed=request.speed,
+            speaker_id=request.speaker_id,
+        )
 
-    audio_data = await tts_service.generate_speech(
-        text=request.text,
-        language=request.language,
-        locale=request.locale,
-        gender=request.gender,
-        voice=request.voice,
-        quality=request.quality,
-        speed=request.speed,
-        speaker_id=request.speaker_id,
-    )
+        duration = time.time() - start_time
+        logger.info(f"Generated speech in {duration:.2f}s")
+        
+        # Track successful request
+        track_tts_request(
+            language=request.language,
+            locale=request.locale,
+            status="success",
+            duration=duration
+        )
+        
+        # Track voice usage
+        track_voice_usage(
+            language=request.language,
+            locale=request.locale or "default",
+            voice=request.voice or "default",
+            gender=request.gender or "any",
+            quality=request.quality or "default"
+        )
 
-    duration = time.time() - start_time
-    logger.info(f"Generated speech in {duration:.2f}s")
-
-    return StreamingResponse(
-        audio_data,
-        media_type="audio/mpeg",
-        headers={
-            "Content-Disposition": "inline; filename=speech.mp3",
-            "X-Generation-Time": f"{duration:.3f}",
-        },
-    )
+        return StreamingResponse(
+            audio_data,
+            media_type="audio/mpeg",
+            headers={
+                "Content-Disposition": "inline; filename=speech.mp3",
+                "X-Generation-Time": f"{duration:.3f}",
+            },
+        )
+    
+    except (LanguageNotFoundError, LocaleNotFoundError, VoiceNotFoundError,
+            GenderNotFoundError, QualityNotFoundError, TextValidationError) as e:
+        duration = time.time() - start_time
+        track_tts_request(
+            language=request.language,
+            locale=request.locale,
+            status="client_error",
+            duration=duration
+        )
+        raise
+    
+    except Exception as e:
+        duration = time.time() - start_time
+        track_tts_request(
+            language=request.language,
+            locale=request.locale,
+            status="error",
+            duration=duration
+        )
+        track_tts_error("unexpected_error")
+        raise
+    
+    finally:
+        # Decrement active generations
+        decrement_active_generations()
 
 
 # =============================================================================
