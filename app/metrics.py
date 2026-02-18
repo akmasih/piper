@@ -3,7 +3,6 @@
 # Prometheus metrics module for Lingudesk Piper TTS Server
 
 import time
-import logging
 from typing import Callable
 
 from fastapi import FastAPI, Request, Response
@@ -17,7 +16,9 @@ from prometheus_client import (
     REGISTRY,
 )
 
-logger = logging.getLogger(__name__)
+from log_config import get_logger
+
+logger = get_logger(__name__)
 
 # ============================================
 # CONFIGURATION
@@ -25,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 SERVER_NAME = "piper"
 SERVER_TYPE = "tts"
-SERVER_VERSION = "2.1.0"
+SERVER_VERSION = "2.2.0"
 
 # ============================================
 # HTTP METRICS
@@ -282,13 +283,13 @@ def get_status_class(status_code: int) -> str:
 # SETUP FUNCTION
 # ============================================
 
-def setup_metrics(app: FastAPI, server_version: str = "2.1.0") -> None:
+def setup_metrics(app: FastAPI, server_version: str = "2.2.0") -> None:
     """
     Setup Prometheus metrics for the Piper TTS FastAPI application.
     
     Usage:
         from metrics import setup_metrics
-        setup_metrics(app, server_version="2.1.0")
+        setup_metrics(app, server_version="2.2.0")
     """
     global SERVER_VERSION
     SERVER_VERSION = server_version
@@ -349,4 +350,10 @@ def setup_metrics(app: FastAPI, server_version: str = "2.1.0") -> None:
             media_type=CONTENT_TYPE_LATEST,
         )
     
-    logger.info(f"Prometheus metrics enabled for {SERVER_NAME} v{SERVER_VERSION}")
+    logger.info(
+        "Prometheus metrics enabled",
+        extra={
+            "server_name": SERVER_NAME,
+            "server_version": SERVER_VERSION,
+        },
+    )

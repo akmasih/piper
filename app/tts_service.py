@@ -2,9 +2,7 @@
 # /root/piper/app/tts_service.py
 # TTS service with hierarchical voice selection: Language → Locale → Gender → Voice
 
-import logging
 import subprocess
-import tempfile
 import asyncio
 from pathlib import Path
 from typing import Optional, Dict, Any, List, BinaryIO
@@ -12,8 +10,9 @@ from io import BytesIO
 from dataclasses import dataclass
 
 from config import settings, Gender, Quality, QUALITY_PRIORITY
+from log_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # =============================================================================
@@ -159,9 +158,17 @@ class TTSService:
         lang, loc, v, variant = resolved
 
         logger.info(
-            f"Generating speech: lang={lang.code}, locale={loc.code}, "
-            f"voice={v.name}, quality={variant.quality.value}, "
-            f"speed={speed}, text_len={len(text)}"
+            "Generating speech",
+            extra={
+                "language": lang.code,
+                "locale": loc.code,
+                "voice": v.name,
+                "gender": v.gender.value,
+                "quality": variant.quality.value,
+                "speed": speed,
+                "text_length": len(text),
+                "speaker_id": speaker_id,
+            },
         )
 
         # Generate audio
@@ -388,7 +395,13 @@ class TTSService:
                 if num_speakers > 1 and speaker_id > 0:
                     piper_cmd.extend(["--speaker", str(speaker_id)])
 
-                logger.debug(f"Running piper command: {' '.join(piper_cmd)}")
+                logger.debug(
+                    "Running piper command",
+                    extra={
+                        "command": " ".join(piper_cmd),
+                        "model": Path(model_path).name,
+                    },
+                )
 
                 # Run piper with text as stdin
                 process = await asyncio.create_subprocess_exec(
@@ -402,7 +415,14 @@ class TTSService:
 
                 if process.returncode != 0:
                     error_msg = stderr.decode("utf-8", errors="replace")
-                    logger.error(f"Piper error: {error_msg}")
+                    logger.error(
+                        "Piper synthesis failed",
+                        extra={
+                            "model": Path(model_path).name,
+                            "return_code": process.returncode,
+                            "stderr": error_msg[:500],
+                        },
+                    )
                     raise SynthesisError(
                         f"Speech synthesis failed: {error_msg[:200]}",
                         ErrorContext(
@@ -436,7 +456,13 @@ class TTSService:
                     str(mp3_path),
                 ]
 
-                logger.debug(f"Running ffmpeg command: {' '.join(ffmpeg_cmd)}")
+                logger.debug(
+                    "Running ffmpeg conversion",
+                    extra={
+                        "bitrate": self.mp3_bitrate,
+                        "sample_rate": sample_rate,
+                    },
+                )
 
                 process = await asyncio.create_subprocess_exec(
                     *ffmpeg_cmd,
@@ -448,7 +474,13 @@ class TTSService:
 
                 if process.returncode != 0:
                     error_msg = stderr.decode("utf-8", errors="replace")
-                    logger.error(f"FFmpeg error: {error_msg}")
+                    logger.error(
+                        "FFmpeg encoding failed",
+                        extra={
+                            "return_code": process.returncode,
+                            "stderr": error_msg[:500],
+                        },
+                    )
                     raise SynthesisError(
                         "Audio encoding failed",
                         ErrorContext(
@@ -475,7 +507,13 @@ class TTSService:
         except SynthesisError:
             raise
         except Exception as e:
-            logger.exception("Synthesis error")
+            logger.exception(
+                "Unexpected synthesis error",
+                extra={
+                    "model": Path(model_path).name if model_path else "unknown",
+                    "text_length": len(text),
+                },
+            )
             raise SynthesisError(
                 f"Unexpected synthesis error: {str(e)}",
                 ErrorContext(

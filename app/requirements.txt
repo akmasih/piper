@@ -1,7 +1,7 @@
 # requirements.txt
 # Path: /root/piper/app/requirements.txt
 # Python dependencies for Piper TTS service with monitoring
-# Version 2.1.0
+# Version 2.2.0
 
 # FastAPI Framework and ASGI server
 fastapi==0.110.0
@@ -28,5 +28,5 @@ python-json-logger==2.0.7
 # System monitoring and metrics
 psutil==5.9.8
 
-# Prometheus metrics (updated version for consistency)
+# Prometheus metrics
 prometheus-client==0.21.1

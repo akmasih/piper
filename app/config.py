@@ -4,13 +4,14 @@
 
 import os
 import json
-import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from enum import Enum
 
-logger = logging.getLogger(__name__)
+from log_config import get_logger
+
+logger = get_logger(__name__)
 
 
 class Gender(str, Enum):
@@ -326,7 +327,15 @@ class VoiceCatalog:
                             try:
                                 quality = Quality(quality_str)
                             except ValueError:
-                                logger.warning(f"Unknown quality: {quality_str}")
+                                logger.warning(
+                                    f"Unknown quality level in voice index",
+                                    extra={
+                                        "quality": quality_str,
+                                        "voice": voice_name,
+                                        "language": lang_code,
+                                        "locale": locale_code,
+                                    },
+                                )
                                 continue
 
                             variant = VoiceVariant(
@@ -354,11 +363,21 @@ class VoiceCatalog:
                     language.default_locale = first_locale
                     self.languages[lang_code] = language
 
-            logger.info(f"Loaded {len(self.languages)} languages, {self.total_voices} voices")
+            logger.info(
+                "Voice catalog loaded",
+                extra={
+                    "languages_count": len(self.languages),
+                    "voices_count": self.total_voices,
+                    "index_path": index_path,
+                },
+            )
             return True
 
         except Exception as e:
-            logger.error(f"Failed to load voice index: {e}")
+            logger.error(
+                "Failed to load voice index",
+                extra={"index_path": index_path, "error": str(e)},
+            )
             return False
 
     @property
@@ -598,6 +617,7 @@ class Settings:
         # Logging
         self.log_level = os.getenv("LOG_LEVEL", "INFO")
         self.log_format = os.getenv("LOG_FORMAT", "json")
+        self.log_dir = os.getenv("LOG_DIR", "/var/log/fastapi")
 
         # Voice catalog
         self.catalog = VoiceCatalog()
@@ -609,7 +629,10 @@ class Settings:
     def load_voices(self) -> bool:
         """Load voice catalog from index file"""
         if not self.voice_index_path.exists():
-            logger.error(f"Voice index not found: {self.voice_index_path}")
+            logger.error(
+                "Voice index not found",
+                extra={"path": str(self.voice_index_path)},
+            )
             return False
         return self.catalog.load_from_index(str(self.voice_index_path))
     

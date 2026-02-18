@@ -1,6 +1,6 @@
 # docker-compose.yml
 # /root/piper/docker-compose.yml
-# Piper TTS Server deployment
+# Piper TTS Server deployment with centralized logging
 
 services:
   piper:
@@ -15,6 +15,8 @@ services:
       - ./models:/app/models:ro
       # Mount temp directory for audio processing
       - piper-temp:/tmp/piper
+      # Mount log directory for local backup (Fluent Bit reads Docker logs, not this)
+      - ./logs:/var/log/fastapi
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/piper/health"]
       interval: 30s

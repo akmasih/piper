@@ -1,6 +1,6 @@
 # Dockerfile
 # /root/piper/Dockerfile
-# Piper TTS Server container
+# Piper TTS Server container with centralized structured logging
 
 FROM python:3.11-slim
 
@@ -26,9 +26,9 @@ COPY --chown=piper:piper app/ /app/
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Create directories
-RUN mkdir -p /app/models /tmp/piper && \
-    chown -R piper:piper /app/models /tmp/piper
+# Create directories (models, temp, and log backup)
+RUN mkdir -p /app/models /tmp/piper /var/log/fastapi && \
+    chown -R piper:piper /app/models /tmp/piper /var/log/fastapi
 
 # Switch to non-root user
 USER piper
@@ -37,6 +37,7 @@ USER piper
 ENV PYTHONUNBUFFERED=1 \
     MODELS_DIR=/app/models \
     TEMP_DIR=/tmp/piper \
+    LOG_DIR=/var/log/fastapi \
     HOST=0.0.0.0 \
     PORT=8000
 
