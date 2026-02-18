@@ -176,6 +176,52 @@ safe_download() {
 }
 
 # ============================================
+# FIND FLUENT BIT BINARY
+# ============================================
+# Fluent Bit can be installed in different locations depending on
+# the installation method. This function finds the actual binary path.
+find_fluent_bit_binary() {
+    # Check common installation paths in priority order
+    local search_paths=(
+        "/usr/local/bin/fluent-bit"
+        "/opt/fluent-bit/bin/fluent-bit"
+        "/usr/bin/fluent-bit"
+        "/opt/td-agent-bit/bin/fluent-bit"
+    )
+
+    for path in "${search_paths[@]}"; do
+        if [[ -x "$path" ]]; then
+            echo "$path"
+            return 0
+        fi
+    done
+
+    # Fallback: use which
+    if command_exists fluent-bit; then
+        which fluent-bit
+        return 0
+    fi
+
+    return 1
+}
+
+# Ensure fluent-bit is accessible from /usr/local/bin for consistent
+# systemd service configuration across all servers
+ensure_fluent_bit_symlink() {
+    if [[ -x /usr/local/bin/fluent-bit ]]; then
+        return 0
+    fi
+
+    local actual_path
+    actual_path=$(find_fluent_bit_binary) || return 1
+
+    if [[ "$actual_path" != "/usr/local/bin/fluent-bit" ]]; then
+        ln -sf "$actual_path" /usr/local/bin/fluent-bit
+        log_info "Created symlink /usr/local/bin/fluent-bit → ${actual_path}"
+    fi
+}
+
+# ============================================
 # CLEANUP: REMOVE OLD SYSTEMD EXPORTERS
 # ============================================
 cleanup_systemd_exporters() {
@@ -300,6 +346,11 @@ install_fluent_bit() {
     else
         log_info "Fluent Bit already installed"
     fi
+
+    # Ensure fluent-bit is accessible from /usr/local/bin
+    # Official installer places binary in /opt/fluent-bit/bin/ but systemd
+    # service references /usr/local/bin/fluent-bit for consistency
+    ensure_fluent_bit_symlink
 }
 
 # ============================================
