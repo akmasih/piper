@@ -8,8 +8,9 @@
 #   python main.py --prune    the same, then delete component versions no longer listed
 #
 # Nothing here chooses between alternatives at run time. Every source is pinned in
-# config.py; a missing file, an unexpected archive layout or a licence outside the
-# allowlist stops the build with the reason, and the previous manifest stays live.
+# config.py; a missing file, an unexpected archive layout, a licence outside the
+# allowlist or a model the engine cannot load stops the build with the reason, and
+# the previous manifest stays live.
 
 import argparse
 import json
@@ -39,6 +40,7 @@ from config import (
 )
 from fetch import download, extract, sha256_of
 from manifest import Component, prune_unreferenced, stage_component, write_manifest
+from validate import run_check, validation_specs
 from whisper_export import export_whisper_turbo
 
 logger = logging.getLogger("speech-packs")
@@ -225,6 +227,10 @@ def main() -> None:
     )
 
     components = build_all(settings)
+    # Every voice and recogniser must load and run in the pinned engine before
+    # any client can be told about it (validate.py says why).
+    for spec in validation_specs(components, settings.components_dir):
+        run_check(spec, spec["label"])
     write_manifest(settings, components)
     if args.prune:
         prune_unreferenced(settings, components)

@@ -20,7 +20,7 @@ WORKDIR /app
 COPY app/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app/__init__.py app/config.py app/fetch.py app/manifest.py app/whisper_export.py app/main.py /app/
+COPY app/__init__.py app/config.py app/fetch.py app/manifest.py app/validate.py app/whisper_export.py app/main.py /app/
 
 RUN useradd -m -u 1000 builder
 USER builder
