@@ -1,52 +1,30 @@
 # Dockerfile
-# /root/piper/Dockerfile
-# Piper TTS Server container with centralized structured logging
+# Path: /root/piper/Dockerfile
+# Image of the speech pack builder: downloads pinned models, exports Whisper with attention outputs, writes the manifest.
 
-FROM python:3.11-slim
+FROM python:3.10-slim
 
-# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg \
-    espeak-ng \
-    curl \
+        git \
+        bzip2 \
+        ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Install piper-tts
-RUN pip install --no-cache-dir piper-tts
+# CPU-only PyTorch: the export traces the model once, no GPU is involved.
+RUN pip install --no-cache-dir \
+        --index-url https://download.pytorch.org/whl/cpu \
+        torch==2.4.1
 
-# Create app user
-RUN useradd -m -u 1000 piper
-
-# Set working directory
 WORKDIR /app
 
-# Copy application code
-COPY --chown=piper:piper app/ /app/
-
-# Install Python dependencies
+COPY app/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Create directories (models, temp, and log backup)
-RUN mkdir -p /app/models /tmp/piper /var/log/fastapi && \
-    chown -R piper:piper /app/models /tmp/piper /var/log/fastapi
+COPY app/__init__.py app/config.py app/fetch.py app/manifest.py app/whisper_export.py app/main.py /app/
 
-# Switch to non-root user
-USER piper
+RUN useradd -m -u 1000 builder
+USER builder
 
-# Environment variables
-ENV PYTHONUNBUFFERED=1 \
-    MODELS_DIR=/app/models \
-    TEMP_DIR=/tmp/piper \
-    LOG_DIR=/var/log/fastapi \
-    HOST=0.0.0.0 \
-    PORT=8000
+ENV PYTHONUNBUFFERED=1
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8000/piper/health || exit 1
-
-# Expose port
-EXPOSE 8000
-
-# Run server
-CMD ["python", "main.py"]
+ENTRYPOINT ["python", "main.py"]

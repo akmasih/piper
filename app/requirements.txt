@@ -1,32 +1,12 @@
 # requirements.txt
 # Path: /root/piper/app/requirements.txt
-# Python dependencies for Piper TTS service with monitoring
-# Version 2.2.0
+# Pinned Python dependencies of the speech pack builder (Whisper export with cross-attention outputs).
+#
+# torch is installed separately in the Dockerfile from the CPU wheel index; it
+# stays below 2.9 because from 2.9 torch.onnx.export defaults to the dynamo
+# exporter, which sherpa-onnx's export script was not written for.
 
-# FastAPI Framework and ASGI server
-fastapi==0.110.0
-uvicorn[standard]==0.27.1
-python-multipart==0.0.9
-
-# Pydantic for data validation and settings
-pydantic==2.6.1
-pydantic-settings==2.2.1
-
-# Audio processing libraries
-pydub==0.25.1
-numpy==1.24.3
-
-# Async file operations
-aiofiles==23.2.1
-
-# HTTP client for health checks
-httpx==0.26.0
-
-# Structured logging (JSON format)
-python-json-logger==2.0.7
-
-# System monitoring and metrics
-psutil==5.9.8
-
-# Prometheus metrics
-prometheus-client==0.21.1
+numpy==1.26.4
+onnx==1.17.0
+onnxruntime==1.20.1
+openai-whisper==20250625

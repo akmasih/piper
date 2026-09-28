@@ -1,705 +1,244 @@
 # main.py
 # Path: /root/piper/app/main.py
-# FastAPI application with hierarchical TTS API, IP filtering, and Prometheus metrics
-# Version 2.2.0: Integrated centralized structured logging (JSON → Fluent Bit → Loki)
+# Builds every speech pack component from pinned upstream sources and publishes the manifest.
+#
+# Run inside the builder container (see ../docker-compose.yml and ../setup.sh):
+#
+#   python main.py            build or refresh everything, write manifest.json
+#   python main.py --prune    the same, then delete component versions no longer listed
+#
+# Nothing here chooses between alternatives at run time. Every source is pinned in
+# config.py; a missing file, an unexpected archive layout or a licence outside the
+# allowlist stops the build with the reason, and the previous manifest stays live.
 
-import time
-from typing import Optional
-from contextlib import asynccontextmanager
+import argparse
+import json
+import logging
+import re
+from pathlib import Path
+from typing import Dict, List
 
-from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import StreamingResponse, JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
-from pydantic import BaseModel, Field
-
-# Initialize structured logging BEFORE any other app imports
-from log_config import setup_logging, get_logger
-
-from config import settings
-
-# Setup logging as early as possible
-setup_logging(
-    server_name=settings.server_name,
-    log_level=settings.log_level,
-    log_dir=settings.log_dir,
+from config import (
+    ALLOWED_LICENSES,
+    ESPEAK_ARCHIVE_URL,
+    ESPEAK_COMPONENT_ID,
+    PARAKEET_V3,
+    PARAKEET_V3_ARCHIVE_ROOT,
+    PARAKEET_V3_ARCHIVE_URL,
+    RUNTIME_WEB_COMPONENT_ID,
+    RUNTIME_WEB_FILES,
+    SHERPA_ONNX_GIT_URL,
+    SHERPA_ONNX_VERSION,
+    SHERPA_WEB_ARCHIVE_URL,
+    TTS_VOICES,
+    WHISPER_TURBO,
+    Settings,
+    SttModel,
+    TtsVoice,
+    normalize_license,
 )
+from fetch import download, extract, sha256_of
+from manifest import Component, prune_unreferenced, stage_component, write_manifest
+from whisper_export import export_whisper_turbo
 
-logger = get_logger(__name__)
+logger = logging.getLogger("speech-packs")
 
-from tts_service import (
-    tts_service,
-    TTSError,
-    LanguageNotFoundError,
-    LocaleNotFoundError,
-    GenderNotFoundError,
-    VoiceNotFoundError,
-    QualityNotFoundError,
-    TextValidationError,
-    SynthesisError,
-)
-
-# Prometheus metrics
-from metrics import (
-    setup_metrics,
-    track_tts_request,
-    track_text_length,
-    track_audio_size,
-    track_voice_usage,
-    track_tts_error,
-    track_blocked_request,
-    set_catalog_stats,
-    increment_active_generations,
-    decrement_active_generations,
-)
+_LICENSE_LINE = re.compile(r"^\*\s*License:\s*(.+?)\s*$", re.IGNORECASE | re.MULTILINE)
 
 
-# =============================================================================
-# IP Filtering Middleware
-# =============================================================================
-
-# Endpoints that bypass IP filtering (accessible from anywhere)
-ALLOWED_ENDPOINTS = {
-    "/piper/health",
-    "/health",
-    "/metrics",
-}
+def _require_file(path: Path) -> Path:
+    if not path.is_file():
+        raise RuntimeError(f"Expected file is missing: {path}")
+    return path
 
 
-class IPFilterMiddleware(BaseHTTPMiddleware):
-    """
-    Middleware to filter requests by client IP address.
-    Only allows requests from configured BACKEND_IP.
-    Exceptions: /health and /metrics endpoints are always allowed.
-    """
-    
-    async def dispatch(self, request: Request, call_next):
-        # Check if endpoint is in allowed list (bypass IP filtering)
-        path = request.url.path
-        if path in ALLOWED_ENDPOINTS:
-            return await call_next(request)
-        
-        # Get client IP from request
-        client_ip = self._get_client_ip(request)
-        
-        # Check if IP is allowed
-        if not settings.is_allowed_ip(client_ip):
-            logger.warning(
-                "Blocked request from unauthorized IP",
-                extra={
-                    "client_ip": client_ip,
-                    "path": path,
-                    "method": request.method,
-                },
-            )
-            track_blocked_request()
-            return JSONResponse(
-                status_code=403,
-                content={
-                    "error": "Access denied",
-                    "detail": "Your IP address is not authorized to access this service",
-                    "client_ip": client_ip,
-                }
-            )
-        
-        # Process request
-        response = await call_next(request)
-        return response
-    
-    def _get_client_ip(self, request: Request) -> str:
-        """
-        Extract client IP from request, considering proxy headers.
-        Priority: X-Forwarded-For > X-Real-IP > client.host
-        """
-        # Check X-Forwarded-For header (may contain multiple IPs)
-        forwarded_for = request.headers.get("X-Forwarded-For")
-        if forwarded_for:
-            # Take the first IP (original client)
-            return forwarded_for.split(",")[0].strip()
-        
-        # Check X-Real-IP header
-        real_ip = request.headers.get("X-Real-IP")
-        if real_ip:
-            return real_ip.strip()
-        
-        # Fall back to direct client IP
-        if request.client:
-            return request.client.host
-        
-        return "unknown"
+def _require_dir(path: Path) -> Path:
+    if not path.is_dir():
+        raise RuntimeError(f"Expected directory is missing: {path}")
+    return path
 
 
-# =============================================================================
-# Lifespan Management
-# =============================================================================
+def _source(url: str, archive: Path) -> Dict[str, str]:
+    return {"url": url, "sha256": sha256_of(archive)}
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application lifespan manager"""
-    logger.info(
-        "Starting Piper TTS Server",
-        extra={
-            "version": "2.2.0",
-            "server_name": settings.server_name,
-            "backend_ip": settings.backend_ip or "ALL (no restriction)",
-            "host": settings.host,
-            "port": settings.port,
+
+def build_runtime_web(settings: Settings) -> Component:
+    """The engine's WebAssembly build and its JavaScript wrappers, for the browser."""
+    archive = download(SHERPA_WEB_ARCHIVE_URL, settings.downloads_dir)
+    assets = _require_dir(extract(archive, settings.extract_dir) / "assets")
+    sources = {name: _require_file(assets / name) for name in RUNTIME_WEB_FILES}
+    version, files = stage_component(settings, RUNTIME_WEB_COMPONENT_ID, sources)
+    return Component(
+        id=RUNTIME_WEB_COMPONENT_ID,
+        kind="runtime",
+        version=version,
+        license="Apache-2.0",
+        attribution=f"sherpa-onnx {SHERPA_ONNX_VERSION}, Apache License 2.0",
+        files=files,
+        source=_source(SHERPA_WEB_ARCHIVE_URL, archive),
+    )
+
+
+def build_espeak_data(settings: Settings) -> Component:
+    """espeak-ng's phoneme data, shared by every Piper voice."""
+    archive = download(ESPEAK_ARCHIVE_URL, settings.downloads_dir)
+    data_dir = _require_dir(extract(archive, settings.extract_dir) / "espeak-ng-data")
+    sources = {
+        f"espeak-ng-data/{path.relative_to(data_dir).as_posix()}": path
+        for path in sorted(data_dir.rglob("*"))
+        if path.is_file()
+    }
+    version, files = stage_component(settings, ESPEAK_COMPONENT_ID, sources)
+    return Component(
+        id=ESPEAK_COMPONENT_ID,
+        kind="tts_data",
+        version=version,
+        license="GPL-3.0",
+        attribution="espeak-ng data, GNU GPL v3",
+        files=files,
+        source=_source(ESPEAK_ARCHIVE_URL, archive),
+    )
+
+
+def _voice_license(model_card: Path, voice: TtsVoice) -> str:
+    """The dataset licence stated on the voice's model card, checked against the allowlist."""
+    text = model_card.read_text(encoding="utf-8")
+    match = _LICENSE_LINE.search(text)
+    if not match:
+        raise RuntimeError(f"Voice {voice.id}: MODEL_CARD states no licence ({model_card})")
+    license_name = match.group(1)
+    if normalize_license(license_name) not in ALLOWED_LICENSES:
+        raise RuntimeError(
+            f"Voice {voice.id}: licence '{license_name}' is not in ALLOWED_LICENSES. "
+            "Replace the voice in config.TTS_VOICES or, after a legal review, allow the licence."
+        )
+    return license_name
+
+
+def build_voice(settings: Settings, voice: TtsVoice) -> Component:
+    """One Piper voice: the VITS model, its phoneme token table, and its audio settings."""
+    archive = download(voice.archive_url, settings.downloads_dir)
+    root = _require_dir(extract(archive, settings.extract_dir) / voice.archive_root)
+    model = _require_file(root / f"{voice.id}.onnx")
+    tokens = _require_file(root / "tokens.txt")
+    config = json.loads(_require_file(root / f"{voice.id}.onnx.json").read_text(encoding="utf-8"))
+    license_name = _voice_license(_require_file(root / "MODEL_CARD"), voice)
+
+    sample_rate = int(config["audio"]["sample_rate"])
+    num_speakers = int(config["num_speakers"])
+    if num_speakers != 1:
+        raise RuntimeError(f"Voice {voice.id} has {num_speakers} speakers; the catalog lists single-speaker voices only")
+
+    version, files = stage_component(
+        settings,
+        voice.component_id,
+        {model.name: model, "tokens.txt": tokens},
+    )
+    return Component(
+        id=voice.component_id,
+        kind="tts_voice",
+        version=version,
+        license=license_name,
+        attribution=f"Piper voice {voice.id}, {license_name}",
+        files=files,
+        requires=[ESPEAK_COMPONENT_ID],
+        tts={
+            "model_type": "vits",
+            "model": model.name,
+            "tokens": "tokens.txt",
+            "data_dir": "espeak-ng-data",
+            "sample_rate": sample_rate,
+            "language": voice.language,
+            "locale": voice.locale,
+            "gender": voice.gender,
+            "display_name": voice.display_name,
+        },
+        source=_source(voice.archive_url, archive),
+    )
+
+
+def _stt_component(
+    settings: Settings, model: SttModel, root: Path, source: Dict[str, str]
+) -> Component:
+    sources = {name: _require_file(root / name) for name in model.files.values()}
+    version, files = stage_component(settings, model.component_id, sources)
+    return Component(
+        id=model.component_id,
+        kind="stt_model",
+        version=version,
+        license=model.license,
+        attribution=model.attribution,
+        files=files,
+        stt={
+            "model_type": model.model_type,
+            "files": dict(model.files),
+            "languages": list(model.languages),
+            "max_input_sec": model.max_input_sec,
+            "sample_rate": 16000,
+        },
+        source=source,
+    )
+
+
+def build_parakeet(settings: Settings) -> Component:
+    """NVIDIA Parakeet TDT 0.6B v3 (int8), as sherpa-onnx publishes it."""
+    archive = download(PARAKEET_V3_ARCHIVE_URL, settings.downloads_dir)
+    root = _require_dir(extract(archive, settings.extract_dir) / PARAKEET_V3_ARCHIVE_ROOT)
+    return _stt_component(settings, PARAKEET_V3, root, _source(PARAKEET_V3_ARCHIVE_URL, archive))
+
+
+def build_whisper(settings: Settings) -> Component:
+    """Whisper turbo (int8) with the cross-attention output word timings need."""
+    root = export_whisper_turbo(settings)
+    return _stt_component(
+        settings,
+        WHISPER_TURBO,
+        root,
+        {
+            "export": "scripts/whisper/export-onnx-with-attention.py --model turbo",
+            "repository": f"{SHERPA_ONNX_GIT_URL}@v{SHERPA_ONNX_VERSION}",
         },
     )
 
-    # Ensure temp directory exists
-    settings.ensure_temp_dir()
-    logger.info(
-        "Temp directory ready",
-        extra={"temp_dir": str(settings.temp_dir)},
+
+def build_all(settings: Settings) -> List[Component]:
+    components = [build_runtime_web(settings), build_espeak_data(settings)]
+    components.extend(build_voice(settings, voice) for voice in TTS_VOICES)
+    components.append(build_parakeet(settings))
+    components.append(build_whisper(settings))
+    return components
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Build the speech packs and their manifest.")
+    parser.add_argument(
+        "--prune",
+        action="store_true",
+        help="after writing the manifest, delete component versions it no longer lists",
+    )
+    args = parser.parse_args()
+
+    settings = Settings()
+    logging.basicConfig(
+        level=settings.log_level,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
 
-    # Load voice catalog
-    if not settings.load_voices():
-        logger.error("Failed to load voice catalog")
-    else:
-        languages_count = len(settings.catalog.languages)
-        voices_count = settings.catalog.total_voices
+    components = build_all(settings)
+    write_manifest(settings, components)
+    if args.prune:
+        prune_unreferenced(settings, components)
+
+    total = sum(c.size for c in components)
+    logger.info("Built %d components, %.1f MB in total", len(components), total / 1e6)
+    for component in components:
         logger.info(
-            "Voice catalog loaded",
-            extra={
-                "languages_count": languages_count,
-                "voices_count": voices_count,
-            },
-        )
-        
-        # Update catalog metrics
-        set_catalog_stats(languages_count, voices_count)
-
-    yield
-
-    logger.info("Shutting down Piper TTS Server")
-
-
-# =============================================================================
-# FastAPI App
-# =============================================================================
-
-app = FastAPI(
-    title="Piper TTS Server",
-    description="Multi-language Text-to-Speech with hierarchical voice selection",
-    version="2.2.0",
-    lifespan=lifespan,
-)
-
-# Setup Prometheus metrics - MUST BE BEFORE IP filtering middleware
-setup_metrics(app, server_version="2.2.0")
-
-# Add IP filtering middleware
-app.add_middleware(IPFilterMiddleware)
-
-
-# =============================================================================
-# Request/Response Models
-# =============================================================================
-
-class TTSRequest(BaseModel):
-    """TTS generation request"""
-    text: str = Field(..., min_length=1, max_length=5000, description="Text to synthesize")
-    language: str = Field(..., min_length=2, max_length=3, description="Language code (e.g., 'en', 'de', 'fa')")
-    locale: Optional[str] = Field(None, description="Locale/region code (e.g., 'US', 'GB', 'IR')")
-    gender: Optional[str] = Field(None, description="Voice gender filter: 'male', 'female', 'neutral'")
-    voice: Optional[str] = Field(None, description="Specific voice name (e.g., 'lessac', 'ryan')")
-    quality: Optional[str] = Field(None, description="Quality level: 'high', 'medium', 'low', 'x_low'")
-    speed: float = Field(1.0, ge=0.5, le=2.0, description="Speech rate (0.5-2.0)")
-    speaker_id: int = Field(0, ge=0, description="Speaker ID for multi-speaker models")
-
-    class Config:
-        json_schema_extra = {
-            "examples": [
-                {
-                    "text": "Hello, how are you today?",
-                    "language": "en",
-                    "locale": "US",
-                    "gender": "female",
-                    "voice": "lessac",
-                    "quality": "high",
-                    "speed": 1.0,
-                },
-                {
-                    "text": "Guten Tag, wie geht es Ihnen?",
-                    "language": "de",
-                },
-                {
-                    "text": "سلام، حالت چطوره؟",
-                    "language": "fa",
-                    "voice": "gyro",
-                },
-            ]
-        }
-
-
-class ErrorResponse(BaseModel):
-    """Error response with helpful context"""
-    error: str
-    requested: Optional[str] = None
-    available: Optional[list] = None
-    hint: Optional[str] = None
-
-
-# =============================================================================
-# Exception Handlers
-# =============================================================================
-
-@app.exception_handler(LanguageNotFoundError)
-async def language_not_found_handler(request, exc: LanguageNotFoundError):
-    track_tts_error("language_not_found")
-    return JSONResponse(status_code=404, content=exc.to_dict())
-
-
-@app.exception_handler(LocaleNotFoundError)
-async def locale_not_found_handler(request, exc: LocaleNotFoundError):
-    track_tts_error("locale_not_found")
-    return JSONResponse(status_code=404, content=exc.to_dict())
-
-
-@app.exception_handler(GenderNotFoundError)
-async def gender_not_found_handler(request, exc: GenderNotFoundError):
-    track_tts_error("gender_not_found")
-    return JSONResponse(status_code=400, content=exc.to_dict())
-
-
-@app.exception_handler(VoiceNotFoundError)
-async def voice_not_found_handler(request, exc: VoiceNotFoundError):
-    track_tts_error("voice_not_found")
-    return JSONResponse(status_code=404, content=exc.to_dict())
-
-
-@app.exception_handler(QualityNotFoundError)
-async def quality_not_found_handler(request, exc: QualityNotFoundError):
-    track_tts_error("quality_not_found")
-    return JSONResponse(status_code=400, content=exc.to_dict())
-
-
-@app.exception_handler(TextValidationError)
-async def text_validation_handler(request, exc: TextValidationError):
-    track_tts_error("text_validation")
-    return JSONResponse(status_code=400, content=exc.to_dict())
-
-
-@app.exception_handler(SynthesisError)
-async def synthesis_error_handler(request, exc: SynthesisError):
-    track_tts_error("synthesis_error")
-    return JSONResponse(status_code=500, content=exc.to_dict())
-
-
-@app.exception_handler(TTSError)
-async def tts_error_handler(request, exc: TTSError):
-    track_tts_error("tts_error")
-    return JSONResponse(status_code=500, content=exc.to_dict())
-
-
-# =============================================================================
-# Health & Info Endpoints
-# =============================================================================
-
-@app.get("/piper/health")
-async def health_check(request: Request):
-    """Health check endpoint - always allowed regardless of IP"""
-    return {
-        "status": "healthy",
-        "service": "piper-tts",
-        "version": "2.2.0",
-        "languages": len(settings.catalog.languages),
-        "voices": settings.catalog.total_voices,
-    }
-
-
-@app.get("/piper/info")
-async def server_info():
-    """Server information"""
-    return {
-        "service": "Piper TTS",
-        "version": "2.2.0",
-        "api_version": "v2",
-        "hierarchy": "Language → Locale → Gender → Voice → Quality",
-        "stats": tts_service.get_stats(),
-        "defaults": {
-            "language": settings.default_language,
-            "locale": settings.default_locale,
-            "quality": settings.default_quality,
-            "speed": settings.default_speed,
-        },
-        "limits": {
-            "max_text_length": settings.max_text_length,
-            "min_speed": settings.min_speed,
-            "max_speed": settings.max_speed,
-        },
-        "audio": {
-            "format": settings.output_format,
-            "bitrate": settings.mp3_bitrate,
-            "sample_rate": settings.default_sample_rate,
-        },
-    }
-
-
-# =============================================================================
-# Language Endpoints
-# =============================================================================
-
-@app.get("/piper/tts/languages")
-async def list_languages():
-    """
-    List all supported languages.
-    
-    Returns languages with their available locales and voice counts.
-    """
-    languages = tts_service.get_languages()
-    return {
-        "count": len(languages),
-        "languages": languages,
-    }
-
-
-@app.get("/piper/tts/languages/{language}")
-async def get_language_details(language: str):
-    """
-    Get details for a specific language.
-    
-    Returns language info with all available locales.
-    """
-    lang = settings.catalog.get_language(language)
-    if not lang:
-        raise LanguageNotFoundError(
-            f"Language '{language}' not found",
-            context=None,
+            "  %-40s %8.1f MB  %s",
+            component.id,
+            component.size / 1e6,
+            component.license,
         )
 
-    return {
-        "code": lang.code,
-        "name": lang.name,
-        "native_name": lang.native_name,
-        "default_locale": lang.default_locale,
-        "locales": tts_service.get_locales(language),
-        "total_voices": lang.total_voices,
-    }
-
-
-# =============================================================================
-# Locale Endpoints
-# =============================================================================
-
-@app.get("/piper/tts/languages/{language}/locales")
-async def list_locales(language: str):
-    """
-    List available locales for a language.
-    
-    Returns locales with voice counts by gender.
-    """
-    locales = tts_service.get_locales(language)
-    return {
-        "language": language,
-        "count": len(locales),
-        "locales": locales,
-    }
-
-
-@app.get("/piper/tts/languages/{language}/locales/{locale}")
-async def get_locale_details(language: str, locale: str):
-    """
-    Get details for a specific locale.
-    
-    Returns locale info with all available voices.
-    """
-    loc = settings.catalog.get_locale(language, locale)
-    if not loc:
-        # Determine specific error
-        lang = settings.catalog.get_language(language)
-        if not lang:
-            raise LanguageNotFoundError(f"Language '{language}' not found")
-        raise LocaleNotFoundError(f"Locale '{locale}' not found for '{language}'")
-
-    voices_by_gender = loc.voices_by_gender
-    return {
-        "code": loc.code,
-        "name": loc.name,
-        "full_code": f"{language}-{locale}",
-        "voices": tts_service.get_voices(language, locale),
-        "by_gender": {
-            g.value: [v.name for v in voices]
-            for g, voices in voices_by_gender.items()
-        },
-    }
-
-
-# =============================================================================
-# Voice Endpoints
-# =============================================================================
-
-@app.get("/piper/tts/languages/{language}/locales/{locale}/voices")
-async def list_voices(
-    language: str,
-    locale: str,
-    gender: Optional[str] = Query(None, description="Filter by gender"),
-):
-    """
-    List available voices for a locale.
-    
-    Optionally filter by gender (male/female/neutral).
-    """
-    voices = tts_service.get_voices(language, locale, gender)
-    return {
-        "language": language,
-        "locale": locale,
-        "gender_filter": gender,
-        "count": len(voices),
-        "voices": voices,
-    }
-
-
-@app.get("/piper/tts/languages/{language}/locales/{locale}/voices/{voice}")
-async def get_voice_details(language: str, locale: str, voice: str):
-    """
-    Get detailed information about a specific voice.
-    
-    Returns voice properties and available quality variants.
-    """
-    details = tts_service.get_voice_details(language, locale, voice)
-    return {
-        "language": language,
-        "locale": locale,
-        **details,
-    }
-
-
-# =============================================================================
-# Catalog Endpoints
-# =============================================================================
-
-@app.get("/piper/tts/catalog")
-async def get_full_catalog():
-    """
-    Get complete voice catalog.
-    
-    Returns all languages, locales, and voices in hierarchical structure.
-    """
-    catalog = tts_service.get_full_catalog()
-    stats = tts_service.get_stats()
-    return {
-        "stats": stats,
-        "catalog": catalog,
-    }
-
-
-@app.get("/piper/tts/voices")
-async def list_all_voices():
-    """
-    List all voices across all languages (flat list).
-    
-    Useful for searching or building UI.
-    """
-    all_voices = []
-    for lang_code, lang in settings.catalog.languages.items():
-        for locale_code, locale in lang.locales.items():
-            for voice_name, voice in locale.voices.items():
-                all_voices.append({
-                    "language": lang_code,
-                    "language_name": lang.name,
-                    "locale": locale_code,
-                    "locale_name": locale.name,
-                    "voice": voice_name,
-                    "display_name": voice.display_name,
-                    "gender": voice.gender.value,
-                    "qualities": [q.value for q in voice.available_qualities],
-                    "key": f"{lang_code}_{locale_code}-{voice_name}",
-                })
-
-    return {
-        "count": len(all_voices),
-        "voices": all_voices,
-    }
-
-
-# =============================================================================
-# TTS Generation Endpoint
-# =============================================================================
-
-@app.post("/piper/tts/generate")
-async def generate_speech(request: TTSRequest):
-    """
-    Generate speech audio from text.
-    
-    ## Selection Hierarchy
-    
-    1. **language** (required): Language code like "en", "de", "fa"
-    2. **locale** (optional): Region code like "US", "GB", "IR" - defaults to language's default
-    3. **gender** (optional): Filter voices by "male", "female", or "neutral"
-    4. **voice** (optional): Specific voice name like "lessac", "ryan" - defaults to first available
-    5. **quality** (optional): "high", "medium", "low", "x_low" - defaults to best available
-    
-    ## Examples
-    
-    **Simple (auto-select everything):**
-    ```json
-    {"text": "Hello world", "language": "en"}
-    ```
-    
-    **With locale:**
-    ```json
-    {"text": "Hello world", "language": "en", "locale": "GB"}
-    ```
-    
-    **With gender preference:**
-    ```json
-    {"text": "Hello world", "language": "en", "gender": "male"}
-    ```
-    
-    **Full control:**
-    ```json
-    {
-        "text": "Hello world",
-        "language": "en",
-        "locale": "US",
-        "gender": "female",
-        "voice": "lessac",
-        "quality": "high",
-        "speed": 1.2
-    }
-    ```
-    
-    Returns MP3 audio stream.
-    """
-    start_time = time.time()
-    
-    # Track text length
-    track_text_length(request.language, len(request.text))
-    
-    # Increment active generations
-    increment_active_generations()
-    
-    try:
-        audio_data = await tts_service.generate_speech(
-            text=request.text,
-            language=request.language,
-            locale=request.locale,
-            gender=request.gender,
-            voice=request.voice,
-            quality=request.quality,
-            speed=request.speed,
-            speaker_id=request.speaker_id,
-        )
-
-        duration = time.time() - start_time
-        duration_ms = duration * 1000
-
-        logger.info(
-            "Speech generated successfully",
-            extra={
-                "language": request.language,
-                "locale": request.locale or "default",
-                "voice": request.voice or "default",
-                "gender": request.gender or "any",
-                "quality": request.quality or "default",
-                "speed": request.speed,
-                "text_length": len(request.text),
-                "duration_ms": round(duration_ms, 2),
-            },
-        )
-        
-        # Track successful request
-        track_tts_request(
-            language=request.language,
-            locale=request.locale,
-            status="success",
-            duration=duration
-        )
-        
-        # Track voice usage
-        track_voice_usage(
-            language=request.language,
-            locale=request.locale or "default",
-            voice=request.voice or "default",
-            gender=request.gender or "any",
-            quality=request.quality or "default"
-        )
-
-        return StreamingResponse(
-            audio_data,
-            media_type="audio/mpeg",
-            headers={
-                "Content-Disposition": "inline; filename=speech.mp3",
-                "X-Generation-Time": f"{duration:.3f}",
-            },
-        )
-    
-    except (LanguageNotFoundError, LocaleNotFoundError, VoiceNotFoundError,
-            GenderNotFoundError, QualityNotFoundError, TextValidationError) as e:
-        duration = time.time() - start_time
-        logger.warning(
-            "TTS client error",
-            extra={
-                "error_type": type(e).__name__,
-                "error_message": e.message,
-                "language": request.language,
-                "locale": request.locale,
-                "voice": request.voice,
-                "duration_ms": round((duration) * 1000, 2),
-            },
-        )
-        track_tts_request(
-            language=request.language,
-            locale=request.locale,
-            status="client_error",
-            duration=duration
-        )
-        raise
-    
-    except Exception as e:
-        duration = time.time() - start_time
-        logger.error(
-            "TTS unexpected error",
-            extra={
-                "error_type": type(e).__name__,
-                "error_message": str(e),
-                "language": request.language,
-                "locale": request.locale,
-                "voice": request.voice,
-                "duration_ms": round((duration) * 1000, 2),
-            },
-        )
-        track_tts_request(
-            language=request.language,
-            locale=request.locale,
-            status="error",
-            duration=duration
-        )
-        track_tts_error("unexpected_error")
-        raise
-    
-    finally:
-        # Decrement active generations
-        decrement_active_generations()
-
-
-# =============================================================================
-# Legacy Compatibility Endpoint
-# =============================================================================
-
-@app.post("/synthesize")
-async def legacy_synthesize(request: TTSRequest):
-    """
-    Legacy endpoint for backward compatibility.
-    
-    Redirects to /piper/tts/generate
-    """
-    return await generate_speech(request)
-
-
-# =============================================================================
-# Main Entry Point
-# =============================================================================
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(
-        "main:app",
-        host=settings.host,
-        port=settings.port,
-        reload=False,
-        log_level=settings.log_level.lower(),
-        workers=settings.worker_threads,
-    )
+    main()

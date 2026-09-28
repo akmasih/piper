@@ -1,2 +1,3 @@
-# File: app/__init__.py - /root/piper/app/__init__.py
-# Piper TTS service package
+# __init__.py
+# Path: /root/piper/app/__init__.py
+# Speech pack builder package (pinned sherpa-onnx voices and recognisers for on-device speech).
