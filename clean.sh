@@ -1,7 +1,7 @@
 #!/bin/bash
 # clean.sh
 # Path: /root/piper/clean.sh
-# Cleanup for the speech pack builder: its container and image, the build cache, and (on request) the published packs.
+# Cleanup for the speech pack builder: its container and image, the build cache, and (on request) the local packs.
 
 set -euo pipefail
 
@@ -25,11 +25,6 @@ print_header() {
     echo
 }
 
-if [[ "$EUID" -ne 0 ]]; then
-    print_message "$RED" "This script must be run as root"
-    exit 1
-fi
-
 if [[ ! -f .env ]]; then
     print_message "$RED" ".env not found in $SCRIPT_DIR"
     exit 1
@@ -38,6 +33,12 @@ set -a
 # shellcheck disable=SC1091
 source .env
 set +a
+
+# docker-compose.yml runs the builder as the invoking user and refuses to load
+# without these, `down` included.
+HOST_UID="$(id -u)"
+HOST_GID="$(id -g)"
+export HOST_UID HOST_GID
 
 remove_builder() {
     print_header "Removing builder container and image"
@@ -53,8 +54,8 @@ clear_work_cache() {
 }
 
 remove_packs() {
-    print_header "Removing published packs: $PACKS_HOST_DIR"
-    print_message "$RED" "Clients will fail to download packs until ./setup.sh runs again."
+    print_header "Removing the local packs: $PACKS_HOST_DIR"
+    print_message "$YELLOW" "The web hosts keep what ./publish.sh uploaded; the next ./publish.sh needs a new ./setup.sh first."
     echo -n "Type 'remove packs' to confirm: "
     read -r answer
     if [[ "$answer" != "remove packs" ]]; then
@@ -62,14 +63,14 @@ remove_packs() {
         return
     fi
     rm -rf "${PACKS_HOST_DIR:?}"/*
-    print_message "$GREEN" "✓ Published packs removed"
+    print_message "$GREEN" "✓ Local packs removed"
 }
 
 show_menu() {
     print_header "Speech Pack Builder Cleanup"
     echo -e "  ${GREEN}1)${NC} Remove builder container and image"
     echo -e "  ${YELLOW}2)${NC} 1 + clear the build cache (downloads, Whisper export)"
-    echo -e "  ${RED}3)${NC} 2 + remove the published packs ${RED}[clients lose downloads]${NC}"
+    echo -e "  ${RED}3)${NC} 2 + remove the local packs ${RED}[rebuild before the next publish]${NC}"
     echo
     echo -e "  ${BLUE}0)${NC} Exit"
     echo

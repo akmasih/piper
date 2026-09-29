@@ -1,14 +1,18 @@
 #!/bin/bash
 # setup.sh
 # Path: /root/piper/setup.sh
-# Builds the speech packs (voices, recognisers, browser engine) and publishes manifest.json into PACKS_HOST_DIR.
+# Builds the speech packs (voices, recognisers, browser engine) and their manifest.json into the local PACKS_HOST_DIR.
 #
 # Usage:
 #   ./setup.sh           build or refresh every component and write the manifest
 #   ./setup.sh --prune   the same, then delete component versions no longer listed
 #
-# Run it on the web host: the packs directory it fills is the one the web
-# deployment's `packs` service serves at https://<domain>/packs/.
+# Run it on a workstation — a Mac with Docker Desktop, or any Linux machine with
+# Docker — never on the web host: the Whisper export takes several gigabytes of
+# memory and every core for minutes. It needs only Docker and jq (on a Mac:
+# `brew install jq`). The finished packs land in PACKS_HOST_DIR; ./publish.sh
+# uploads them to the web hosts, whose `packs` service serves them at
+# https://<domain>/packs/.
 
 set -euo pipefail
 
@@ -51,9 +55,17 @@ if ! docker compose version >/dev/null 2>&1; then
     exit 1
 fi
 
-# The builder runs as uid 1000 inside the container.
+if ! docker info >/dev/null 2>&1; then
+    log_error "The Docker daemon is not reachable (on a Mac: start Docker Desktop)"
+    exit 1
+fi
+
+# The container runs as the invoking user (docker-compose.yml), so the
+# directories it writes into are simply created by that user here.
+HOST_UID="$(id -u)"
+HOST_GID="$(id -g)"
+export HOST_UID HOST_GID
 mkdir -p "$PACKS_HOST_DIR" "$WORK_HOST_DIR"
-chown 1000:1000 "$PACKS_HOST_DIR" "$WORK_HOST_DIR"
 
 log_info "Building the builder image"
 docker compose build builder
@@ -68,6 +80,7 @@ if [[ ! -f "$MANIFEST" ]]; then
 fi
 
 log_ok "Manifest written: $MANIFEST"
+log_info "Upload it to the web hosts with ./publish.sh"
 echo
 jq -r '"engine: \(.engine.name) \(.engine.version)   generated: \(.generated_at)"' "$MANIFEST"
 echo

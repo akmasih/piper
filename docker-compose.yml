@@ -1,18 +1,25 @@
 # docker-compose.yml
 # Path: /root/piper/docker-compose.yml
-# One-shot speech pack builder; writes packs into PACKS_DIR, which the web host's nginx serves at /packs/.
+# One-shot speech pack builder; writes packs into PACKS_HOST_DIR on the machine that runs it, for ./publish.sh to upload.
 
 services:
   builder:
     build: .
     container_name: speech-pack-builder
     restart: "no"
+    # The invoking user's uid/gid (exported by ./setup.sh), so every file the
+    # build writes into the two bind mounts belongs to that user: on Linux no
+    # chown is needed, and on a Mac, Docker Desktop maps it to the Mac user.
+    user: "${HOST_UID:?run ./setup.sh}:${HOST_GID:?run ./setup.sh}"
     env_file:
       - .env
     environment:
       # Paths inside the container; the host paths come from .env below.
       - PACKS_DIR=/packs
       - WORK_DIR=/work
+      # The uid above has no home in the image; tools that write under $HOME
+      # get a directory in the work volume instead.
+      - HOME=/work/home
       # The Whisper checkpoint download lands in the work volume, so a re-export
       # after a version bump does not fetch it again.
       - XDG_CACHE_HOME=/work/cache
