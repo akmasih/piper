@@ -1,5 +1,5 @@
 # log_config.py
-# Path: /root/piper/app/log_config.py
+# Path: /Users/eleheim/projects/piper/app/log_config.py
 # Centralized logging configuration for Piper TTS server
 #
 # Logging strategy:

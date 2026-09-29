@@ -1,5 +1,5 @@
 # Dockerfile
-# Path: /root/piper/Dockerfile
+# Path: /Users/eleheim/projects/piper/Dockerfile
 # Image of the speech pack builder: downloads pinned models, exports Whisper with attention outputs, writes the manifest.
 
 FROM python:3.10-slim

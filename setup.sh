@@ -1,16 +1,20 @@
 #!/bin/bash
 # setup.sh
-# Path: /root/piper/setup.sh
+# Path: /Users/eleheim/projects/piper/setup.sh
 # Builds the speech packs (voices, recognisers, browser engine) and publishes manifest.json into PACKS_HOST_DIR.
 #
 # Usage:
 #   ./setup.sh           build or refresh every component and write the manifest
 #   ./setup.sh --prune   the same, then delete component versions no longer listed
 #
-# PACKS_HOST_DIR is what the web deployment's `packs` service serves at
-# https://<domain>/packs/. Run it on the web host to build in place, or on any
-# other machine (a Mac with Docker Desktop included) and copy PACKS_HOST_DIR to
-# the web host afterwards: components/ first, manifest.json last.
+# The packs are built on the Mac (Docker Desktop, at least 12 GB of memory for
+# the Whisper export) and then copied to /srv/speech-packs on the web host,
+# which the web deployment's `packs` service serves at https://<domain>/packs/.
+# Copy components/ first and manifest.json last, so the live manifest never
+# names a file the web host does not have yet:
+#
+#   rsync -a "$PACKS_HOST_DIR/components/" root@<web-host>:/srv/speech-packs/components/
+#   rsync -a "$PACKS_HOST_DIR/manifest.json" root@<web-host>:/srv/speech-packs/manifest.json
 
 set -euo pipefail
 

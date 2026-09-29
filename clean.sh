@@ -1,6 +1,6 @@
 #!/bin/bash
 # clean.sh
-# Path: /root/piper/clean.sh
+# Path: /Users/eleheim/projects/piper/clean.sh
 # Cleanup for the speech pack builder: its container and image, the build cache, and (on request) the published packs.
 
 set -euo pipefail

@@ -1,5 +1,5 @@
 # .gitignore
-# Path: /root/piper/.gitignore
+# Path: /Users/eleheim/projects/piper/.gitignore
 # Keeps build outputs, caches and local tooling out of the speech pack builder repository.
 
 # Build outputs live outside the repository (PACKS_HOST_DIR, WORK_HOST_DIR),

@@ -1,5 +1,5 @@
 # fetch.py
-# Path: /root/piper/app/fetch.py
+# Path: /Users/eleheim/projects/piper/app/fetch.py
 # Downloads pinned upstream archives once into the work directory and extracts them.
 #
 # The work directory is a cache keyed by the archive's file name: a second build

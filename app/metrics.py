@@ -1,5 +1,5 @@
 # metrics.py
-# Path: /root/piper/app/metrics.py
+# Path: /Users/eleheim/projects/piper/app/metrics.py
 # Prometheus metrics module for Lingudesk Piper TTS Server
 
 import time

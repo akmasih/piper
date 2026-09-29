@@ -1,5 +1,5 @@
 # docker-compose.yml
-# Path: /root/piper/docker-compose.yml
+# Path: /Users/eleheim/projects/piper/docker-compose.yml
 # One-shot speech pack builder; writes packs into PACKS_HOST_DIR, which the web host's nginx serves at /packs/.
 
 services:

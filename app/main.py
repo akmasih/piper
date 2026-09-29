@@ -1,5 +1,5 @@
 # main.py
-# Path: /root/piper/app/main.py
+# Path: /Users/eleheim/projects/piper/app/main.py
 # Builds every speech pack component from pinned upstream sources and publishes the manifest.
 #
 # Run inside the builder container (see ../docker-compose.yml and ../setup.sh):

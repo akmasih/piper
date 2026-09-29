@@ -1,5 +1,5 @@
 # tts_service.py
-# /root/piper/app/tts_service.py
+# /Users/eleheim/projects/piper/app/tts_service.py
 # TTS service with hierarchical voice selection: Language → Locale → Gender → Voice
 
 import subprocess

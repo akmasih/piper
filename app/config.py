@@ -1,5 +1,5 @@
 # config.py
-# Path: /root/piper/app/config.py
+# Path: /Users/eleheim/projects/piper/app/config.py
 # Pinned catalog of every speech pack component (engine runtime, voices, recognisers) and the builder's settings.
 #
 # This file is the contract between the pack builder and the two clients (web and

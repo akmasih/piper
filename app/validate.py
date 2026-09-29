@@ -1,5 +1,5 @@
 # validate.py
-# Path: /root/piper/app/validate.py
+# Path: /Users/eleheim/projects/piper/app/validate.py
 # Loads and runs every staged voice and recogniser with the pinned sherpa-onnx engine before the manifest is published.
 #
 # A pack the engine cannot load must never reach a learner. On the web a load

@@ -1,5 +1,5 @@
 File: endpoints.txt
-Path: /root/piper/endpoints.txt
+Path: /Users/eleheim/projects/piper/endpoints.txt
 What the web host serves from the packs this repository builds (static files, nginx, read-only).
 
 Base URL: https://oropen.com/packs/   (web repo: deployment/packs/nginx.conf)

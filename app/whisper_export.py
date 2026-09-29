@@ -1,5 +1,5 @@
 # whisper_export.py
-# Path: /root/piper/app/whisper_export.py
+# Path: /Users/eleheim/projects/piper/app/whisper_export.py
 # Exports Whisper turbo to ONNX with cross-attention outputs, using sherpa-onnx's own script at the pinned tag.
 #
 # Word timings from Whisper come from dynamic time warping over the decoder's

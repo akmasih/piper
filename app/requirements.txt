@@ -1,5 +1,5 @@
 # requirements.txt
-# Path: /root/piper/app/requirements.txt
+# Path: /Users/eleheim/projects/piper/app/requirements.txt
 # Pinned Python dependencies of the speech pack builder (Whisper export with cross-attention outputs).
 #
 # torch is installed separately in the Dockerfile from the CPU wheel index; it

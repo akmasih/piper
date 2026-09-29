@@ -1,5 +1,5 @@
 # manifest.py
-# Path: /root/piper/app/manifest.py
+# Path: /Users/eleheim/projects/piper/app/manifest.py
 # Stages each component into an immutable, content-versioned directory and writes the manifest the clients read.
 #
 # Layout under PACKS_DIR (served as /packs/ by the web host):
