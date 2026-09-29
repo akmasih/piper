@@ -20,10 +20,9 @@ WORKDIR /app
 COPY app/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
+# No user is baked in: docker-compose.yml runs the builder as the host user
+# who starts it, so everything it writes on the host belongs to that user.
 COPY app/__init__.py app/config.py app/fetch.py app/manifest.py app/validate.py app/whisper_export.py app/main.py /app/
-
-RUN useradd -m -u 1000 builder
-USER builder
 
 ENV PYTHONUNBUFFERED=1
 

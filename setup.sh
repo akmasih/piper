@@ -7,8 +7,10 @@
 #   ./setup.sh           build or refresh every component and write the manifest
 #   ./setup.sh --prune   the same, then delete component versions no longer listed
 #
-# Run it on the web host: the packs directory it fills is the one the web
-# deployment's `packs` service serves at https://<domain>/packs/.
+# PACKS_HOST_DIR is what the web deployment's `packs` service serves at
+# https://<domain>/packs/. Run it on the web host to build in place, or on any
+# other machine (a Mac with Docker Desktop included) and copy PACKS_HOST_DIR to
+# the web host afterwards: components/ first, manifest.json last.
 
 set -euo pipefail
 
@@ -51,9 +53,11 @@ if ! docker compose version >/dev/null 2>&1; then
     exit 1
 fi
 
-# The builder runs as uid 1000 inside the container.
-mkdir -p "$PACKS_HOST_DIR" "$WORK_HOST_DIR"
-chown 1000:1000 "$PACKS_HOST_DIR" "$WORK_HOST_DIR"
+# The builder runs as the user running this script (docker-compose.yml).
+BUILDER_UID="$(id -u)"
+BUILDER_GID="$(id -g)"
+export BUILDER_UID BUILDER_GID
+mkdir -p "$PACKS_HOST_DIR" "$WORK_HOST_DIR/home"
 
 log_info "Building the builder image"
 docker compose build builder

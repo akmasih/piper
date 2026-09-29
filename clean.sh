@@ -25,11 +25,6 @@ print_header() {
     echo
 }
 
-if [[ "$EUID" -ne 0 ]]; then
-    print_message "$RED" "This script must be run as root"
-    exit 1
-fi
-
 if [[ ! -f .env ]]; then
     print_message "$RED" ".env not found in $SCRIPT_DIR"
     exit 1
@@ -38,6 +33,11 @@ set -a
 # shellcheck disable=SC1091
 source .env
 set +a
+
+# docker-compose.yml names the builder's user; setup.sh ran it as this user.
+BUILDER_UID="$(id -u)"
+BUILDER_GID="$(id -g)"
+export BUILDER_UID BUILDER_GID
 
 remove_builder() {
     print_header "Removing builder container and image"

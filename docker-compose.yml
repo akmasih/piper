@@ -1,12 +1,15 @@
 # docker-compose.yml
 # Path: /root/piper/docker-compose.yml
-# One-shot speech pack builder; writes packs into PACKS_DIR, which the web host's nginx serves at /packs/.
+# One-shot speech pack builder; writes packs into PACKS_HOST_DIR, which the web host's nginx serves at /packs/.
 
 services:
   builder:
     build: .
     container_name: speech-pack-builder
     restart: "no"
+    # The host user who runs ./setup.sh (exported there). Files in both host
+    # directories then belong to that user on Linux and on Docker Desktop alike.
+    user: "${BUILDER_UID:?run through ./setup.sh}:${BUILDER_GID:?run through ./setup.sh}"
     env_file:
       - .env
     environment:
@@ -16,6 +19,9 @@ services:
       # The Whisper checkpoint download lands in the work volume, so a re-export
       # after a version bump does not fetch it again.
       - XDG_CACHE_HOME=/work/cache
+      # The host uid has no account in the image: give it a home and a name.
+      - HOME=/work/home
+      - USER=builder
     volumes:
       - ${PACKS_HOST_DIR}:/packs
       - ${WORK_HOST_DIR}:/work
