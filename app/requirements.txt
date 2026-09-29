@@ -6,6 +6,16 @@
 # stays below 2.9 because from 2.9 torch.onnx.export defaults to the dynamo
 # exporter, which sherpa-onnx's export script was not written for.
 
+# torch's own dependencies (the Dockerfile installs torch with --no-deps).
+filelock==3.16.1
+fsspec==2024.10.0
+jinja2==3.1.4
+MarkupSafe==3.0.2
+mpmath==1.3.0
+networkx==3.4.2
+sympy==1.13.3
+typing_extensions==4.12.2
+
 numpy==1.26.4
 onnx==1.17.0
 onnxruntime==1.20.1
