@@ -79,7 +79,10 @@ close_connection() {
     rm -rf "$CONTROL_DIR"
 }
 trap close_connection EXIT
-remote() { ssh "${SSH_OPTS[@]}" "$PUBLISH_HOST" "$@"; }
+# `remote` runs a command that takes no input (-n: stdin is never read);
+# `remote_with_input` feeds it this script's standard input.
+remote() { ssh -n "${SSH_OPTS[@]}" "$PUBLISH_HOST" "$@"; }
+remote_with_input() { ssh "${SSH_OPTS[@]}" "$PUBLISH_HOST" "$@"; }
 RSYNC_RSH="ssh ${SSH_OPTS[*]}"
 export RSYNC_RSH
 
@@ -89,7 +92,9 @@ remote "mkdir -p '$PUBLISH_DIR/components'"
 # "<id> <version>" for every component the manifest names.
 COMPONENTS="$(jq -r '.components | to_entries[] | "\(.key) \(.value.version)"' "$MANIFEST")"
 
-while read -r id version; do
+# The list is read on descriptor 3: ssh and rsync read standard input, and
+# would otherwise swallow the rest of it after the first component.
+while read -r -u 3 id version; do
     source_dir="$PACKS_HOST_DIR/components/$id/$version"
     if [[ ! -d "$source_dir" ]]; then
         log_error "The manifest names $id/$version but $source_dir does not exist"
@@ -98,12 +103,12 @@ while read -r id version; do
     log_info "Uploading $id/$version"
     remote "mkdir -p '$PUBLISH_DIR/components/$id'"
     rsync -a "$source_dir" "$PUBLISH_HOST:$PUBLISH_DIR/components/$id/"
-done <<< "$COMPONENTS"
+done 3<<< "$COMPONENTS"
 
 log_info "Verifying every file's SHA-256 on the web host"
 jq -r '.components | to_entries[] | .key as $id | .value.version as $v
        | .value.files[] | "\(.sha256)  components/\($id)/\($v)/\(.path)"' "$MANIFEST" \
-    | remote "cd '$PUBLISH_DIR' && sha256sum --quiet --check -"
+    | remote_with_input "cd '$PUBLISH_DIR' && sha256sum --quiet --check -"
 log_ok "All component files on the web host match the manifest"
 
 # rsync writes to a temporary name and renames it into place, so clients see
@@ -135,7 +140,7 @@ for dir in */; do
     rmdir --ignore-fail-on-non-empty -- "${dir%/}"
 done
 PRUNE
-    } | remote "bash -s"
+    } | remote_with_input "bash -s"
 fi
 
 log_info "Checking $PUBLISH_URL"
