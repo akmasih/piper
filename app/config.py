@@ -148,7 +148,7 @@ TTS_VOICES: List[TtsVoice] = [
     TtsVoice("de_DE-kerstin-low", "de", "DE", "female", "Kerstin"),
     TtsVoice("de_DE-thorsten-medium", "de", "DE", "male", "Thorsten"),
     TtsVoice("fa_IR-amir-medium", "fa", "IR", "male", "Amir"),
-    TtsVoice("fa_IR-gyro-medium", "fa", "IR", "male", "Gyro"),
+    TtsVoice("fa_IR-ganji-medium", "fa", "IR", "male", "Ganji"),
 ]
 
 PARAKEET_V3 = SttModel(
