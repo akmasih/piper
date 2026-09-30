@@ -8,13 +8,8 @@
 #   ./setup.sh --prune   the same, then delete component versions no longer listed
 #
 # The packs are built on the Mac (Docker Desktop, at least 12 GB of memory for
-# the Whisper export) and then copied to /srv/speech-packs on the web host,
-# which the web deployment's `packs` service serves at https://<domain>/packs/.
-# Copy components/ first and manifest.json last, so the live manifest never
-# names a file the web host does not have yet:
-#
-#   rsync -a "$PACKS_HOST_DIR/components/" root@<web-host>:/srv/speech-packs/components/
-#   rsync -a "$PACKS_HOST_DIR/manifest.json" root@<web-host>:/srv/speech-packs/manifest.json
+# the Whisper export); ./publish.sh then copies them to the web host, whose
+# `packs` service serves them at https://oropen.com/packs/.
 
 set -euo pipefail
 
@@ -82,3 +77,5 @@ echo
 jq -r '.packs[] | "\(.id)\t\(.language)\t\(.components | join(", "))"' "$MANIFEST" | column -t -s $'\t'
 echo
 jq -r '.components | to_entries[] | "\(.key)\t\(.value.version)\t\(.value.size / 1000000 | floor) MB\t\(.value.license)"' "$MANIFEST" | column -t -s $'\t'
+echo
+log_info "Publish to the web host with ./publish.sh"
