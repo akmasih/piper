@@ -16,7 +16,8 @@
 # build never touches a file a client may be downloading.
 #
 # The web host accepts SSH only over Tailscale (web repo: setup_firewall.sh),
-# so PUBLISH_HOST in .env is its Tailscale address.
+# and its sshd listens on a non-standard port, so PUBLISH_HOST in .env is its
+# Tailscale address and PUBLISH_PORT that port.
 
 set -euo pipefail
 
@@ -48,7 +49,7 @@ set -a
 source .env
 set +a
 
-for var in PACKS_HOST_DIR PUBLISH_HOST PUBLISH_DIR PUBLISH_URL; do
+for var in PACKS_HOST_DIR PUBLISH_HOST PUBLISH_PORT PUBLISH_DIR PUBLISH_URL; do
     if [[ -z "${!var:-}" ]]; then
         log_error "$var is not set in .env"
         exit 1
@@ -72,7 +73,7 @@ GENERATED_AT="$(jq -r '.generated_at' "$MANIFEST")"
 # One SSH connection for every step: a single login, however many uploads.
 # Short path: macOS caps a socket path at 104 characters.
 CONTROL_DIR="$(mktemp -d /tmp/publish.XXXXXX)"
-SSH_OPTS=(-o ControlMaster=auto -o ControlPath="$CONTROL_DIR/%C" -o ControlPersist=120 -o ConnectTimeout=15)
+SSH_OPTS=(-p "$PUBLISH_PORT" -o ControlMaster=auto -o ControlPath="$CONTROL_DIR/%C" -o ControlPersist=120 -o ConnectTimeout=15)
 close_connection() {
     ssh "${SSH_OPTS[@]}" -O exit "$PUBLISH_HOST" >/dev/null 2>&1 || true
     rm -rf "$CONTROL_DIR"
